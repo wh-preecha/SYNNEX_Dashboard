@@ -97,6 +97,7 @@ body{font-family:'Sarabun',sans-serif;background:#EBE8E3;color:var(--txt);min-he
 
 /* CAPACITY */
 .cap-card{background:var(--wh);border:1px solid var(--bdr);border-radius:14px;padding:18px 20px;margin-bottom:14px;position:relative;overflow:hidden}
+.cap-card.hidden{display:none}
 .cap-stripe{position:absolute;top:0;left:0;bottom:0;width:5px}
 .cap-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-left:14px}
 .cap-name{font-family:'Prompt',sans-serif;font-size:15px;font-weight:600}
@@ -120,6 +121,12 @@ body{font-family:'Sarabun',sans-serif;background:#EBE8E3;color:var(--txt);min-he
 .floor-bar-f{height:100%;border-radius:2px}
 .cap-form{padding-left:14px;border-top:1px solid var(--bdr);padding-top:12px;margin-top:8px}
 .cap-form-t{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--b500);font-weight:600;margin-bottom:8px}
+.cap-tools{background:var(--g100);border:1px solid var(--bdr);border-radius:12px;padding:14px 18px;margin-bottom:14px}
+.cap-tools-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.cap-filter{display:flex;gap:6px;flex-wrap:wrap}
+.cap-filter button{padding:7px 13px;border:1.5px solid var(--bdr2);border-radius:16px;background:var(--wh);font-family:'Sarabun',sans-serif;font-size:12px;font-weight:600;color:var(--txt3);cursor:pointer}
+.cap-filter button.active{background:var(--b500);border-color:var(--b500);color:var(--wh)}
+.cap-missing-banner{display:none;background:#FEF2F2;border:1.5px solid #FECACA;border-left:4px solid #EF4444;border-radius:0 12px 12px 0;padding:12px 16px;margin-bottom:14px;align-items:flex-start;gap:10px;flex-wrap:wrap}
 
 /* ALERTS */
 .alert-c{border:1px solid var(--bdr);border-left:4px solid var(--acc);border-radius:0 12px 12px 0;padding:14px 16px;margin-bottom:9px;display:flex;align-items:flex-start;gap:12px}
@@ -373,8 +380,30 @@ tr:hover td{background:var(--b100)}
 <!-- ===== CAPACITY ===== -->
 <div id="s-capacity" class="sec">
   <div class="save-ok" id="cap-ok">✅ บันทึก Capacity สำเร็จ!</div>
+  <div class="cap-tools">
+    <div class="cap-tools-row">
+      <div>
+        <div class="fsec" style="margin-bottom:6px;padding-bottom:0;border-bottom:none">🏭 เลือกคลังสำหรับกรอก Capacity</div>
+        <div style="font-size:12px;color:var(--txt3)">กำลังกรอกข้อมูล: <strong id="cap-period"></strong></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+          <div class="dp-sel"><label>ปี</label><select id="cap-year" onchange="onCapPeriodChange()"></select></div>
+          <div class="dp-sel"><label>เดือน</label><select id="cap-month" onchange="onCapPeriodChange()">
+            <option value="1">มกราคม</option><option value="2">กุมภาพันธ์</option><option value="3">มีนาคม</option><option value="4">เมษายน</option><option value="5">พฤษภาคม</option><option value="6">มิถุนายน</option><option value="7">กรกฎาคม</option><option value="8">สิงหาคม</option><option value="9">กันยายน</option><option value="10">ตุลาคม</option><option value="11">พฤศจิกายน</option><option value="12">ธันวาคม</option>
+          </select></div>
+        </div>
+      </div>
+      <div class="cap-filter">
+        <button class="active" data-cap-filter="all" onclick="setCapWarehouse('all',this)">ทุกคลัง</button>
+        <button data-cap-filter="hq" onclick="setCapWarehouse('hq',this)">HQ</button>
+        <button data-cap-filter="mdc" onclick="setCapWarehouse('mdc',this)">MDC</button>
+        <button data-cap-filter="tks" onclick="setCapWarehouse('tks',this)">TKS</button>
+        <button data-cap-filter="bp" onclick="setCapWarehouse('bp',this)">บางปู</button>
+      </div>
+    </div>
+  </div>
+  <div class="cap-missing-banner" id="cap-missing-banner"></div>
   <!-- HQ -->
-  <div class="cap-card">
+  <div class="cap-card" data-cap-wh="hq">
     <div class="cap-stripe" style="background:linear-gradient(180deg,#1A3A6B,#2563B0)"></div>
     <div class="cap-hdr">
       <div><div class="cap-name" style="color:#1A3A6B">HQ Warehouse (Synnex)</div><div class="cap-sub">Bangna KM 7 · Pallet + Robot ASRS + Tote</div></div>
@@ -403,7 +432,7 @@ tr:hover td{background:var(--b100)}
     </div>
   </div>
   <!-- MDC -->
-  <div class="cap-card">
+  <div class="cap-card" data-cap-wh="mdc">
     <div class="cap-stripe" style="background:linear-gradient(180deg,#3B82F6,#60A5FA)"></div>
     <div class="cap-hdr">
       <div><div class="cap-name" style="color:#1D4ED8">MDC — Bangna KM19</div><div class="cap-sub">Pallet Capacity: 6,700</div></div>
@@ -419,7 +448,7 @@ tr:hover td{background:var(--b100)}
     </div>
   </div>
   <!-- TKS -->
-  <div class="cap-card">
+  <div class="cap-card" data-cap-wh="tks">
     <div class="cap-stripe" style="background:linear-gradient(180deg,#F59E0B,#FCD34D)"></div>
     <div class="cap-hdr">
       <div><div class="cap-name" style="color:#92400E">TKS — Sinsakorn</div><div class="cap-sub">Pallet Capacity: 1,512–1,728</div></div>
@@ -435,7 +464,7 @@ tr:hover td{background:var(--b100)}
     </div>
   </div>
   <!-- BANGPU -->
-  <div class="cap-card">
+  <div class="cap-card" data-cap-wh="bp">
     <div class="cap-stripe" style="background:linear-gradient(180deg,#F97316,#FB923C)"></div>
     <div class="cap-hdr">
       <div><div class="cap-name" style="color:#9A3412">บางปู (TKS Bangpu)</div><div class="cap-sub">Pallet Capacity: 800 · คลังใหม่</div></div>
@@ -456,7 +485,7 @@ tr:hover td{background:var(--b100)}
       <div class="legend-row"><div class="legend-dot" style="background:var(--acc)"></div>80–95% เฝ้าระวัง</div>
       <div class="legend-row"><div class="legend-dot" style="background:var(--red)"></div>&gt;95% วิกฤต</div>
     </div>
-    <button class="btn-o" onclick="loadCap()">🔄 โหลดข้อมูลล่าสุด</button>
+    <button class="btn-o" onclick="loadCap();highlightCapMissing(dispYr,dispMo)">🔄 โหลดและตรวจสอบ</button>
     <button class="btn-g" onclick="saveCap()">☁️ บันทึก Capacity</button>
   </div>
 </div>
@@ -750,6 +779,7 @@ function onDpChange(){
   dispYr=+document.getElementById('dp-year').value;
   dispMo=+document.getElementById('dp-month').value;
   document.getElementById('hdr-mo').textContent=MOF[dispMo]+' '+dispYr;
+  syncCapPeriodInputs();
   rDash();
 }
 function stepMonth(d){
@@ -759,9 +789,10 @@ function stepMonth(d){
   document.getElementById('dp-year').value=String(y);
   document.getElementById('dp-month').value=String(m);
   document.getElementById('hdr-mo').textContent=MOF[m]+' '+y;
+  syncCapPeriodInputs();
   rDash();
 }
-function jumpToLatest(){const l=getLatest();dispYr=l.yr;dispMo=l.mo;initDP();document.getElementById('hdr-mo').textContent=MOF[l.mo]+' '+l.yr;rDash();}
+function jumpToLatest(){const l=getLatest();dispYr=l.yr;dispMo=l.mo;initDP();syncCapPeriodInputs();document.getElementById('hdr-mo').textContent=MOF[l.mo]+' '+l.yr;rDash();}
 function setViewMonth(){viewMode='month';document.getElementById('view-month').style.display='block';document.getElementById('view-all').style.display='none';document.getElementById('vt-month').classList.add('active');document.getElementById('vt-all').classList.remove('active');rDash();}
 function setViewAll(){viewMode='all';document.getElementById('view-month').style.display='none';document.getElementById('view-all').style.display='block';document.getElementById('vt-all').classList.add('active');document.getElementById('vt-month').classList.remove('active');rCumAll();}
 
@@ -774,6 +805,36 @@ function missLogFields(yr,mo){
 function missCapFields(yr,mo){
   const d=getCD(yr,mo);
   return[['hqPU','HQ Pallet'],['hqTU','HQ Tote'],['mdcPU','MDC'],['tksPU','TKS'],['bpPU','บางปู']].filter(c=>d[c[0]]===null||d[c[0]]===undefined).map(c=>c[1]);
+}
+const CAP_FIELD_GROUPS={
+  hq:[{key:'hqPU',id:'hq-pu',lbl:'HQ Pallet ใช้อยู่'},{key:'hqTU',id:'hq-tu',lbl:'HQ Tote ใช้อยู่'}],
+  mdc:[{key:'mdcPU',id:'mdc-pu',lbl:'MDC Pallet ใช้อยู่'}],
+  tks:[{key:'tksPU',id:'tks-pu',lbl:'TKS Pallet ใช้อยู่'}],
+  bp:[{key:'bpPU',id:'bp-pu',lbl:'บางปู Pallet ใช้อยู่'}]
+};
+let selectedCapWh='all';
+
+function syncCapPeriodInputs(){
+  const cy=document.getElementById('cap-year');
+  const cm=document.getElementById('cap-month');
+  if(cy){
+    if(!cy.options.length)cy.innerHTML=[2017,2018,2019,2020,2021,2022,2023,2024,2025,2026,2027].map(y=>`<option value="${y}">${y}</option>`).join('');
+    cy.value=String(dispYr);
+  }
+  if(cm)cm.value=String(dispMo);
+  const pe=document.getElementById('cap-period');if(pe)pe.textContent=MOF[dispMo]+' '+dispYr;
+}
+
+function onCapPeriodChange(){
+  const cy=document.getElementById('cap-year');
+  const cm=document.getElementById('cap-month');
+  if(!cy||!cm)return;
+  dispYr=+cy.value;dispMo=+cm.value;
+  const dy=document.getElementById('dp-year'),dm=document.getElementById('dp-month');
+  if(dy)dy.value=String(dispYr);
+  if(dm)dm.value=String(dispMo);
+  document.getElementById('hdr-mo').textContent=MOF[dispMo]+' '+dispYr;
+  rDash();loadCap();rAlerts();
 }
 
 // ─── SVG MULTI-LINE CHART ─────────────────────────────────────
@@ -943,6 +1004,7 @@ function rKPI(){
 // ─── CAPACITY RENDER ─────────────────────────────────────────
 function rCap(){
   const d=getCD(dispYr,dispMo);
+  syncCapPeriodInputs();
   const pHQP=d.hqPC>0?(d.hqPU||0)/d.hqPC:0,pHQT=d.hqTC>0?(d.hqTU||0)/d.hqTC:0;
   const pMDC=d.mdcPC>0?(d.mdcPU||0)/d.mdcPC:0,pTKS=d.tksPC>0?(d.tksPU||0)/d.tksPC:0,pBP=d.bpPC>0?(d.bpPU||0)/d.bpPC:0;
   const sb=(id,l,p)=>{const e=document.getElementById(id);if(e){e.textContent=l+' '+pLbl(p);e.style.cssText=pBdg(p);}};
@@ -964,6 +1026,65 @@ function rCap(){
   else if(ne)ne.innerHTML='';
   const capA=[pHQP,pHQT,pMDC,pTKS,pBP].filter(p=>p>=0.80).length;
   const ce=document.getElementById('cap-cnt');if(ce){if(capA){ce.textContent=capA;ce.style.display='inline';}else ce.style.display='none';}
+  applyCapWarehouseFilter();
+  highlightCapMissing(dispYr,dispMo);
+}
+
+function setCapWarehouse(wh,btn){
+  selectedCapWh=wh||'all';
+  document.querySelectorAll('[data-cap-filter]').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  else {
+    const cur=document.querySelector(`[data-cap-filter="${selectedCapWh}"]`);
+    if(cur)cur.classList.add('active');
+  }
+  applyCapWarehouseFilter();
+  highlightCapMissing(dispYr,dispMo);
+}
+
+function applyCapWarehouseFilter(){
+  document.querySelectorAll('[data-cap-wh]').forEach(card=>{
+    card.classList.toggle('hidden',selectedCapWh!=='all'&&card.dataset.capWh!==selectedCapWh);
+  });
+  const cur=document.querySelector(`[data-cap-filter="${selectedCapWh}"]`);
+  if(cur){
+    document.querySelectorAll('[data-cap-filter]').forEach(b=>b.classList.remove('active'));
+    cur.classList.add('active');
+  }
+}
+
+function capFieldsForSelection(){
+  if(selectedCapWh==='all')return Object.values(CAP_FIELD_GROUPS).flat();
+  return CAP_FIELD_GROUPS[selectedCapWh]||[];
+}
+
+function highlightCapMissing(yr,mo){
+  const d=getCD(yr,mo);
+  document.querySelectorAll('#s-capacity .fgrp input').forEach(el=>{
+    el.style.borderColor='';
+    el.style.boxShadow='';
+    el.style.background='';
+  });
+  const missing=[];
+  capFieldsForSelection().forEach(({key,id,lbl})=>{
+    const el=document.getElementById(id);
+    const empty=d[key]===null||d[key]===undefined;
+    if(el&&empty){
+      el.style.borderColor='#EF4444';
+      el.style.boxShadow='0 0 0 3px rgba(239,68,68,0.15)';
+      el.style.background='#FFF5F5';
+      missing.push(lbl);
+    }
+  });
+  const banner=document.getElementById('cap-missing-banner');
+  if(banner){
+    if(missing.length){
+      banner.style.display='flex';
+      banner.innerHTML=`<span style="font-size:16px">🔴</span><div><strong>ช่อง Capacity ที่ยังต้องกรอก (${missing.length} รายการ):</strong> ${missing.map(m=>`<span style="background:#FEE2E2;color:#DC2626;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:600;margin-right:3px">${m}</span>`).join('')}<div style="font-size:11px;color:#64748B;margin-top:3px">วงแดงจะแสดงตามคลังที่เลือกอยู่ด้านบน</div></div>`;
+    }else{
+      banner.style.display='none';
+    }
+  }
 }
 
 function loadCap(){
@@ -974,17 +1095,26 @@ function loadCap(){
   s('mdc-pu',d.mdcPU);s('mdc-pc',d.mdcPC||6700);s('mdc-sku',d.mdcSKU);
   s('tks-pu',d.tksPU);s('tks-pc',d.tksPC||1512);s('tks-sku',d.tksSKU);
   s('bp-pu',d.bpPU);s('bp-pc',d.bpPC||800);s('bp-sku',d.bpSKU);
+  highlightCapMissing(dispYr,dispMo);
 }
 
 function saveCap(){
   const yr=dispYr,mo=dispMo;
   const g=(id)=>parseFloat(document.getElementById(id).value)||null;
-  const row={hqPU:g('hq-pu'),hqPC:g('hq-pc')||4432,hqTU:g('hq-tu'),hqTC:g('hq-tc')||9422,hqF1:g('hq-f1'),hqF2r:g('hq-f2r'),hqF2a:g('hq-f2a'),hqF3:g('hq-f3'),hqF4:g('hq-f4'),mdcPU:g('mdc-pu'),mdcPC:g('mdc-pc')||6700,mdcSKU:g('mdc-sku'),tksPU:g('tks-pu'),tksPC:g('tks-pc')||1512,tksSKU:g('tks-sku'),bpPU:g('bp-pu'),bpPC:g('bp-pc')||800,bpSKU:g('bp-sku')};
+  const row=Object.assign({},(CAP[yr]||{})[mo]||{});
+  const patch={
+    hq:{hqPU:g('hq-pu'),hqPC:g('hq-pc')||4432,hqTU:g('hq-tu'),hqTC:g('hq-tc')||9422,hqF1:g('hq-f1'),hqF2r:g('hq-f2r'),hqF2a:g('hq-f2a'),hqF3:g('hq-f3'),hqF4:g('hq-f4')},
+    mdc:{mdcPU:g('mdc-pu'),mdcPC:g('mdc-pc')||6700,mdcSKU:g('mdc-sku')},
+    tks:{tksPU:g('tks-pu'),tksPC:g('tks-pc')||1512,tksSKU:g('tks-sku')},
+    bp:{bpPU:g('bp-pu'),bpPC:g('bp-pc')||800,bpSKU:g('bp-sku')}
+  };
+  if(selectedCapWh==='all')Object.assign(row,patch.hq,patch.mdc,patch.tks,patch.bp);
+  else Object.assign(row,patch[selectedCapWh]||{});
   if(!CAP[yr])CAP[yr]={};CAP[yr][mo]=Object.assign(CAP[yr][mo]||{},row);
   localStorage.setItem('sx6_cap',JSON.stringify(CAP));
   const ok=document.getElementById('cap-ok');ok.style.display='flex';setTimeout(()=>ok.style.display='none',3000);
   postToDb({type:'capacity',yr,mo,...row});
-  rCap();rKPI();
+  rCap();rKPI();highlightCapMissing(yr,mo);
 }
 
 // ─── CHARTS ───────────────────────────────────────────────────
@@ -1048,6 +1178,7 @@ function rStatus(){
 function jumpToMonth(yr,mo){
   dispYr=yr;dispMo=mo;
   initDP();
+  syncCapPeriodInputs();
   document.getElementById('hdr-mo').textContent=MOF[mo]+' '+yr;
   rDash();
 }
