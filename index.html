@@ -1,0 +1,1724 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>SYNNEX Logistics Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<style>
+:root{
+  --b900:#0A1628;--b800:#0F2444;--b700:#1A3A6B;--b600:#1E4D8C;--b500:#2563B0;--b400:#3B82F6;--b300:#93C5FD;--b100:#EFF6FF;
+  --g50:#F8FAFF;--g100:#F1F5FD;--g200:#E2EAFB;--g300:#C8D9F8;
+  --acc:#F59E0B;--acc2:#FCD34D;--acc3:#FEF3C7;
+  --grn:#10B981;--grn2:#D1FAE5;--red:#EF4444;--red2:#FEE2E2;--org:#F97316;
+  --txt:#0F172A;--txt2:#334155;--txt3:#64748B;--txt4:#94A3B8;
+  --bdr:#E2E8F0;--bdr2:#CBD5E1;--wh:#FFFFFF;
+  --shadow:0 1px 3px rgba(0,0,0,0.06),0 4px 16px rgba(15,36,68,0.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Sarabun',sans-serif;background:#EBE8E3;color:var(--txt);min-height:100vh}
+.shell{max-width:1380px;margin:0 auto;padding:18px}
+.topbar{background:linear-gradient(135deg,var(--b900),var(--b700));border-radius:14px 14px 0 0;padding:0 28px;display:flex;align-items:center;justify-content:space-between;min-height:68px}
+.brand{display:flex;align-items:center;gap:12px}
+.brand-ico{width:40px;height:40px;background:linear-gradient(135deg,var(--acc),var(--acc2));border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:20px}
+.brand-name{font-family:'Prompt',sans-serif;font-size:20px;font-weight:700;color:var(--wh)}
+.brand-name span{color:var(--acc2)}
+.brand-sub{font-size:10px;color:rgba(255,255,255,0.4);letter-spacing:.1em;text-transform:uppercase;margin-top:2px}
+.top-r{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.top-pill{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:16px;padding:5px 12px;font-size:11px;color:rgba(255,255,255,.7)}
+.top-pill.live{background:rgba(16,185,129,0.2);border-color:rgba(16,185,129,0.4);color:#6EE7B7}
+.top-btn{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:16px;padding:5px 13px;font-size:11px;color:rgba(255,255,255,.8);cursor:pointer;font-family:'Sarabun',sans-serif;transition:all .15s}
+.top-btn:hover{background:rgba(255,255,255,0.2)}
+.top-btn.sync{background:rgba(16,185,129,0.2);border-color:rgba(16,185,129,0.4);color:#6EE7B7}
+.nav{background:var(--wh);border-bottom:2px solid var(--bdr);padding:0 28px;display:flex;overflow-x:auto}
+.nav::-webkit-scrollbar{height:0}
+.nb{padding:12px 16px;font-size:13px;font-weight:500;color:var(--txt3);cursor:pointer;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;background:none;font-family:'Sarabun',sans-serif;transition:color .15s}
+.nb.active{color:var(--b500);border-bottom-color:var(--b400);font-weight:600}
+.nb:hover:not(.active){color:var(--b700)}
+.nb-cnt{background:var(--red2);color:var(--red);border-radius:10px;padding:1px 7px;font-size:10px;display:none;font-weight:700}
+.body{background:var(--wh);padding:24px 28px;min-height:500px;border-radius:0 0 14px 14px;border:1px solid var(--bdr);border-top:none}
+.sec{display:none}.sec.active{display:block}
+
+/* KPI */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.kpi-wh{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:18px}
+.kpi{background:var(--wh);border:1px solid var(--bdr);border-radius:14px;padding:18px 16px;position:relative;overflow:hidden;transition:all .2s}
+.kpi:hover{box-shadow:var(--shadow);transform:translateY(-1px)}
+.kpi-top{height:3px;position:absolute;top:0;left:0;right:0;border-radius:14px 14px 0 0}
+.kpi-icon{font-size:26px;margin-bottom:10px}
+.kpi-lbl{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--txt3);margin-bottom:5px;font-weight:500}
+.kpi-val{font-family:'Prompt',sans-serif;font-size:28px;font-weight:700;color:var(--txt);line-height:1;letter-spacing:-0.5px}
+.kpi-unit{font-size:13px;font-weight:400;color:var(--txt3);margin-left:3px}
+.kpi-sub{font-size:11px;color:var(--txt3);margin-top:6px}
+.up{color:var(--grn);font-weight:600}.dn{color:var(--red);font-weight:600}
+.kpi-wh-card{background:var(--wh);border:1px solid var(--bdr);border-radius:12px;padding:14px 12px;text-align:center;transition:all .2s;border-top:3px solid}
+.kpi-wh-card:hover{box-shadow:var(--shadow)}
+.kwc-name{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px}
+.kwc-val{font-family:'Prompt',sans-serif;font-size:20px;font-weight:700;color:var(--txt)}
+.kwc-sub{font-size:10px;color:var(--txt3);margin-top:3px}
+
+/* PANELS */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px}
+.panel{background:var(--wh);border:1px solid var(--bdr);border-radius:14px;padding:18px 20px}
+.ph{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.pt{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--txt2)}
+.ptag{font-size:10px;background:var(--b100);color:var(--b500);border-radius:6px;padding:2px 8px;font-weight:600}
+.ptag.gr{background:var(--grn2);color:var(--grn)}
+.ptag.am{background:var(--acc3);color:#92400E}
+
+/* BAR */
+.br{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.bl{font-size:11px;color:var(--txt3);width:52px;text-align:right;flex-shrink:0}
+.bt{flex:1;height:8px;background:var(--g200);border-radius:4px;overflow:hidden}
+.bf{height:100%;border-radius:4px;transition:width .5s}
+.bv{font-size:11px;font-weight:600;width:64px;text-align:right;flex-shrink:0;font-family:'Prompt',sans-serif}
+.bf-blue{background:linear-gradient(90deg,#2563B0,#60A5FA)}
+.bf-gold{background:linear-gradient(90deg,#F59E0B,#FCD34D)}
+.bf-green{background:linear-gradient(90deg,#10B981,#34D399)}
+.bf-red{background:linear-gradient(90deg,#EF4444,#F87171)}
+.bf-purple{background:linear-gradient(90deg,#8B5CF6,#A78BFA)}
+.bf-navy{background:linear-gradient(90deg,#0F2444,#2563B0)}
+.bf-coral{background:linear-gradient(90deg,#F97316,#FB923C)}
+
+/* STAT */
+.stat-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
+.sc{border:1px solid var(--bdr);border-radius:9px;padding:7px 4px;text-align:center;cursor:pointer;transition:all .15s}
+.sc:hover{transform:scale(1.05)}
+.sc.ok{border-color:rgba(16,185,129,.3);background:#F0FDF4}
+.sc.miss{border-color:rgba(245,158,11,.35);background:var(--acc3)}
+.sc.fut{background:var(--g100)}
+.sc.cur{border-color:var(--b300);background:var(--b100)}
+.smo{font-size:10px;color:var(--txt3);margin-bottom:2px;font-weight:500}
+.slb{font-size:10px;font-weight:600}
+.ok .slb{color:var(--grn)}.miss .slb{color:#92400E}.fut .slb{color:var(--txt4)}.cur .slb{color:var(--b600)}
+
+/* CAPACITY */
+.cap-card{background:var(--wh);border:1px solid var(--bdr);border-radius:14px;padding:18px 20px;margin-bottom:14px;position:relative;overflow:hidden}
+.cap-stripe{position:absolute;top:0;left:0;bottom:0;width:5px}
+.cap-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-left:14px}
+.cap-name{font-family:'Prompt',sans-serif;font-size:15px;font-weight:600}
+.cap-sub{font-size:11px;color:var(--txt3);margin-top:2px}
+.cap-bdg{font-size:12px;font-weight:600;padding:4px 12px;border-radius:8px}
+.prog-row{margin-bottom:10px;padding-left:14px}
+.prog-lbl{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}
+.prog-name{font-weight:600;color:var(--txt2)}
+.prog-val{font-weight:700;font-family:'Prompt',sans-serif}
+.prog-track{height:11px;background:var(--g200);border-radius:6px;overflow:hidden}
+.prog-fill{height:100%;border-radius:6px;transition:width .5s}
+.p-ok{background:linear-gradient(90deg,#10B981,#34D399)}
+.p-warn{background:linear-gradient(90deg,#F59E0B,#FCD34D)}
+.p-danger{background:linear-gradient(90deg,#EF4444,#F87171)}
+.floor-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px;padding-left:14px}
+.floor-cell{background:var(--g100);border:1px solid var(--bdr);border-radius:9px;padding:10px 8px;text-align:center}
+.floor-name{font-size:10px;color:var(--txt3);margin-bottom:4px}
+.floor-val{font-family:'Prompt',sans-serif;font-size:17px;font-weight:700}
+.floor-cap{font-size:10px;color:var(--txt4)}
+.floor-bar{height:4px;background:var(--bdr);border-radius:2px;margin-top:5px;overflow:hidden}
+.floor-bar-f{height:100%;border-radius:2px}
+.cap-form{padding-left:14px;border-top:1px solid var(--bdr);padding-top:12px;margin-top:8px}
+.cap-form-t{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--b500);font-weight:600;margin-bottom:8px}
+
+/* ALERTS */
+.alert-c{border:1px solid var(--bdr);border-left:4px solid var(--acc);border-radius:0 12px 12px 0;padding:14px 16px;margin-bottom:9px;display:flex;align-items:flex-start;gap:12px}
+.a-ico{width:36px;height:36px;background:var(--acc3);border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px}
+.a-title{font-size:13px;font-weight:600;color:var(--txt);margin-bottom:3px}
+.a-desc{font-size:11px;color:var(--txt3);line-height:1.6}
+.a-btn{margin-left:auto;flex-shrink:0;padding:7px 14px;background:var(--b500);border:none;border-radius:9px;color:var(--wh);font-size:12px;font-weight:600;cursor:pointer;font-family:'Sarabun',sans-serif}
+.a-btn:hover{background:var(--b600)}
+
+/* FORMS */
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.fg4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.fg5{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.fgrp{margin-bottom:10px}
+.fgrp label{display:block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--txt3);margin-bottom:4px;font-weight:600}
+.fgrp input,.fgrp select,.fgrp textarea{width:100%;padding:9px 12px;background:var(--wh);border:1.5px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:'Sarabun',sans-serif;font-size:13px;outline:none;transition:border-color .15s}
+.fgrp input:focus,.fgrp select:focus,.fgrp textarea:focus{border-color:var(--b400);box-shadow:0 0 0 3px rgba(59,130,246,0.1)}
+.fgrp input::placeholder{color:var(--txt4)}
+.fgrp textarea{resize:vertical;min-height:70px}
+.fsec{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--b500);font-weight:700;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid var(--b100);display:flex;align-items:center;gap:6px}
+.btn-b{padding:9px 20px;background:var(--b500);border:none;border-radius:9px;color:var(--wh);font-family:'Sarabun',sans-serif;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:all .15s}
+.btn-b:hover{background:var(--b600)}
+.btn-g{padding:9px 20px;background:linear-gradient(135deg,#F59E0B,#F97316);border:none;border-radius:9px;color:var(--wh);font-family:'Sarabun',sans-serif;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:all .15s}
+.btn-g:hover{opacity:.9}
+.btn-o{padding:9px 20px;background:transparent;border:1.5px solid var(--bdr2);border-radius:9px;color:var(--txt2);font-family:'Sarabun',sans-serif;font-size:13px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:all .15s}
+.btn-o:hover{border-color:var(--b400);color:var(--b500)}
+.btn-red{padding:9px 20px;background:transparent;border:1.5px solid var(--red2);border-radius:9px;color:var(--red);font-family:'Sarabun',sans-serif;font-size:13px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:all .15s}
+.btn-red:hover{background:var(--red2)}
+.save-ok{background:var(--grn2);border:1.5px solid rgba(16,185,129,.3);border-radius:11px;padding:11px 16px;font-size:13px;color:#065F46;margin-bottom:14px;display:none;align-items:center;gap:9px;font-weight:500}
+.info-box{background:var(--acc3);border:1px solid rgba(245,158,11,.3);border-left:4px solid var(--acc);border-radius:0 9px 9px 0;padding:11px 14px;font-size:13px;color:#92400E;line-height:1.6;margin-bottom:14px}
+
+/* TABLE */
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:9px 12px;font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--txt3);font-weight:600;border-bottom:2px solid var(--bdr);background:var(--g100);white-space:nowrap}
+td{padding:9px 12px;border-bottom:1px solid var(--bdr);color:var(--txt);white-space:nowrap}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--b100)}
+.bdg-ok{background:var(--grn2);color:#065F46;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600}
+.bdg-ms{background:var(--acc3);color:#92400E;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600}
+.bdg-ft{background:var(--g200);color:var(--txt4);padding:2px 8px;border-radius:5px;font-size:10px}
+.bdg-warn{background:#FEF3C7;color:#92400E;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600}
+.bdg-danger{background:var(--red2);color:#991B1B;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600}
+.code-block{background:var(--b900);color:rgba(255,255,255,.85);padding:16px;border-radius:11px;font-size:11px;line-height:1.8;overflow-x:auto;font-family:monospace;white-space:pre}
+
+/* DATE PICKER */
+.dp-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:18px;padding:14px 18px;background:var(--g100);border:1px solid var(--bdr);border-radius:12px}
+.dp-left{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dp-sel{display:flex;align-items:center;gap:6px;background:var(--wh);border:1.5px solid var(--bdr2);border-radius:9px;padding:6px 12px}
+.dp-sel label{font-size:11px;color:var(--txt3);font-weight:500;white-space:nowrap}
+.dp-sel select{border:none;background:transparent;font-family:'Sarabun',sans-serif;font-size:14px;font-weight:600;color:var(--b700);outline:none;cursor:pointer}
+.dp-arrow{width:32px;height:32px;border:1.5px solid var(--bdr2);border-radius:8px;background:var(--wh);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--txt2);transition:all .15s}
+.dp-arrow:hover{border-color:var(--b400);color:var(--b500)}
+.dp-latest{padding:6px 14px;border:1.5px solid var(--b300);border-radius:9px;background:var(--b100);color:var(--b600);font-size:12px;font-weight:600;cursor:pointer;font-family:'Sarabun',sans-serif}
+.vt-btn{padding:6px 14px;border:1.5px solid var(--bdr2);border-radius:16px;font-size:12px;font-weight:500;color:var(--txt3);cursor:pointer;background:var(--wh);font-family:'Sarabun',sans-serif;transition:all .15s}
+.vt-btn.active{background:var(--b500);color:var(--wh);border-color:var(--b500);font-weight:600}
+
+/* MISSING PANEL */
+.miss-panel{background:var(--wh);border:1.5px solid var(--bdr);border-radius:13px;padding:14px 18px;margin-bottom:16px;box-shadow:0 2px 8px rgba(15,36,68,.05)}
+.miss-ok{background:#F0FDF4;border:1.5px solid #BBF7D0;border-radius:12px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+.miss-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--bdr)}
+.miss-row:last-child{border-bottom:none}
+
+/* CUMULATIVE */
+.cum-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.cum-card{background:linear-gradient(135deg,var(--b100),var(--wh));border:1px solid var(--g300);border-radius:13px;padding:14px 16px;cursor:pointer;transition:all .2s}
+.cum-card:hover{box-shadow:var(--shadow);transform:translateY(-1px)}
+.cum-mo{font-size:11px;font-weight:700;color:var(--b500);letter-spacing:.06em;text-transform:uppercase;margin-bottom:5px}
+.cum-rev{font-family:'Prompt',sans-serif;font-size:24px;font-weight:700;color:var(--b800);line-height:1}
+.cum-sub{font-size:11px;color:var(--txt3);margin-top:3px}
+.cum-bar-row{display:flex;align-items:center;gap:5px;margin-top:8px;margin-bottom:3px}
+.cum-bar-lbl{font-size:10px;color:var(--txt4);width:32px}
+.cum-bar-t{flex:1;height:4px;background:var(--g200);border-radius:2px;overflow:hidden}
+.cum-bar-f{height:100%;border-radius:2px}
+
+/* ANALYSIS */
+.an-nav{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.an-t{padding:6px 14px;border:1.5px solid var(--bdr2);border-radius:16px;font-size:12px;font-weight:500;color:var(--txt3);cursor:pointer;background:var(--wh);font-family:'Sarabun',sans-serif;display:inline-flex;align-items:center;gap:5px;transition:all .15s}
+.an-t.active{background:var(--b500);color:var(--wh);border-color:var(--b500);font-weight:600}
+.an-t:hover:not(.active){border-color:var(--b400);color:var(--b500)}
+.an-sec{display:none}.an-sec.active{display:block}
+.met4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.met{background:linear-gradient(135deg,var(--b100),var(--g100));border:1px solid var(--g300);border-radius:12px;padding:14px 16px}
+.met-lbl{font-size:10px;color:var(--txt3);margin-bottom:5px;letter-spacing:.05em;text-transform:uppercase;font-weight:500}
+.met-val{font-family:'Prompt',sans-serif;font-size:22px;font-weight:700;color:var(--b700)}
+.met-sub{font-size:11px;color:var(--txt3);margin-top:4px}
+.ib{background:linear-gradient(135deg,var(--b900),var(--b700));border-radius:14px;padding:18px 20px;margin-bottom:16px}
+.ib-title{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--acc2);margin-bottom:12px;font-weight:600}
+.ib-row{display:flex;align-items:flex-start;gap:8px;margin-bottom:8px}
+.ib-dot{width:6px;height:6px;border-radius:50%;background:var(--acc2);margin-top:6px;flex-shrink:0}
+.ib-text{font-size:12px;color:rgba(255,255,255,.8);line-height:1.6}
+.ib-text strong{color:var(--acc2)}
+
+/* HISTORY TABLE */
+.tbl-wrap{overflow-x:auto;border-radius:11px;border:1px solid var(--bdr)}
+
+/* UPLOAD AREA */
+.upload-area{border:2px dashed var(--bdr2);border-radius:12px;padding:32px;text-align:center;cursor:pointer;transition:all .2s;background:var(--g100)}
+.upload-area:hover,.upload-area.drag{border-color:var(--b400);background:var(--b100)}
+.upload-area input{display:none}
+.upload-ico{font-size:40px;margin-bottom:12px}
+.upload-title{font-family:'Prompt',sans-serif;font-size:16px;font-weight:600;color:var(--b700);margin-bottom:6px}
+.upload-sub{font-size:13px;color:var(--txt3)}
+
+/* FOOTER */
+.footer{background:linear-gradient(135deg,var(--b900),var(--b700));border-radius:0 0 14px 14px;padding:14px 28px;display:flex;justify-content:space-between;align-items:center}
+.fl{font-size:10px;color:rgba(255,255,255,.28);letter-spacing:.08em;text-transform:uppercase}
+.fr{font-family:'Prompt',sans-serif;font-size:14px;color:var(--acc2);font-weight:600}
+
+.legend-row{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--txt3)}
+.legend-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.donut-wrap{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.donut-legend{flex:1;min-width:120px}
+.dl-row{display:flex;align-items:center;gap:7px;margin-bottom:8px}
+.dl-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+
+/* YoY */
+.yoy-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.yoy-card{background:var(--wh);border:1px solid var(--bdr);border-radius:12px;padding:14px 16px;text-align:center}
+.yoy-mo{font-size:11px;font-weight:600;color:var(--txt3);margin-bottom:8px;letter-spacing:.05em}
+.yoy-bars{display:flex;align-items:flex-end;justify-content:center;gap:4px;height:60px}
+.yoy-bar-wrap{display:flex;flex-direction:column;align-items:center;gap:3px}
+.yoy-bar{width:18px;border-radius:4px 4px 0 0;min-height:3px;transition:height .4s}
+.yoy-bar-lbl{font-size:9px;color:var(--txt4);font-weight:500}
+.yoy-val{font-family:'Prompt',sans-serif;font-size:10px;font-weight:600;margin-top:4px}
+.yoy-chg{font-size:10px;font-weight:700;margin-top:2px}
+
+/* PDF PRINT */
+@media print{
+  body{background:white!important;font-size:11px}
+  .shell{padding:0!important;max-width:100%!important}
+  .topbar{border-radius:0!important;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+  .nav,.top-btn,.btn-b,.btn-g,.btn-o,.btn-red,.dp-bar,.an-nav,.a-btn,.cap-form{display:none!important}
+  .sec{display:block!important}
+  .body{padding:12px!important;border:none!important}
+  .panel,.cap-card,.met,.kpi,.kpi-wh-card,.cum-card{break-inside:avoid;page-break-inside:avoid}
+  .g2,.g3,.g13,.kpi-row,.kpi-wh,.met4,.yoy-grid{grid-template-columns:repeat(2,1fr)!important}
+  .footer{border-radius:0!important;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+  .bf,.prog-fill,.yoy-bar,.floor-bar-f,.cum-bar-f{print-color-adjust:exact;-webkit-print-color-adjust:exact}
+  #s-dashboard,#s-analysis{display:block!important}
+  #s-capacity,#s-alerts,#s-entry,#s-upload,#s-history,#s-settings{display:none!important}
+  .an-sec{display:block!important}
+  .an-sec+.an-sec{page-break-before:always}
+  svg{max-width:100%}
+  .pdf-hide{display:none!important}
+  .pdf-page-break{page-break-before:always}
+}
+
+@media(max-width:1024px){
+  .yoy-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:640px){
+  .yoy-grid{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-ico">🚛</div>
+    <div>
+      <div class="brand-name">SYNNEX <span>Logistics</span></div>
+      <div class="brand-sub">5-Warehouse Intelligence Platform</div>
+    </div>
+  </div>
+  <div class="top-r">
+    <div class="top-pill live">● Live</div>
+    <button class="top-btn sync" onclick="syncFromDb()">🔄 Sync DB</button>
+    <button class="top-btn" onclick="exportPDF()" style="background:rgba(239,68,68,0.2);border-color:rgba(239,68,68,0.4);color:#FCA5A5">📄 Export PDF</button>
+    <div class="top-pill" id="hdr-mo"></div>
+  </div>
+</div>
+
+<div class="nav">
+  <button class="nb active" onclick="sw('dashboard',this)">📊 Dashboard</button>
+  <button class="nb" onclick="sw('capacity',this)">🏭 Capacity <span class="nb-cnt" id="cap-cnt"></span></button>
+  <button class="nb" onclick="sw('analysis',this)">📈 วิเคราะห์</button>
+  <button class="nb" onclick="sw('alerts',this)">🔔 แจ้งเตือน <span class="nb-cnt" id="a-cnt"></span></button>
+  <button class="nb" onclick="sw('entry',this)">✏️ กรอกข้อมูล</button>
+  <button class="nb" onclick="sw('upload',this)">📤 Upload Excel</button>
+  <button class="nb" onclick="sw('history',this)">📅 ประวัติ</button>
+  <button class="nb" onclick="sw('settings',this)">⚙️ ตั้งค่า</button>
+</div>
+
+<div class="body">
+
+<!-- ===== DASHBOARD ===== -->
+<div id="s-dashboard" class="sec active">
+  <div class="dp-bar">
+    <div class="dp-left">
+      <div class="dp-sel"><label>ปี</label><select id="dp-year" onchange="onDpChange()"><option>2023</option><option>2024</option><option>2025</option><option value="2026" selected>2026</option></select></div>
+      <div class="dp-sel"><label>เดือน</label><select id="dp-month" onchange="onDpChange()">
+        <option value="1">มกราคม</option><option value="2">กุมภาพันธ์</option><option value="3">มีนาคม</option><option value="4">เมษายน</option><option value="5">พฤษภาคม</option><option value="6">มิถุนายน</option><option value="7">กรกฎาคม</option><option value="8">สิงหาคม</option><option value="9">กันยายน</option><option value="10">ตุลาคม</option><option value="11">พฤศจิกายน</option><option value="12">ธันวาคม</option>
+      </select></div>
+      <button class="dp-arrow" onclick="stepMonth(-1)">‹</button>
+      <button class="dp-arrow" onclick="stepMonth(1)">›</button>
+      <button class="dp-latest" onclick="jumpToLatest()">ล่าสุด</button>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="vt-btn active" id="vt-month" onclick="setViewMonth()">📅 รายเดือน</button>
+      <button class="vt-btn" id="vt-all" onclick="setViewAll()">📊 สะสมทั้งหมด</button>
+    </div>
+  </div>
+
+  <div id="view-month">
+    <div id="dash-missing-panel" style="margin-bottom:16px"></div>
+    <div class="kpi-wh" id="kpi-wh"></div>
+    <div class="kpi-row" id="kpi-main"></div>
+    <div class="panel" style="margin-bottom:16px">
+      <div class="ph"><div class="pt">📦 Capacity ภาพรวมทุกคลัง</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <div class="legend-row"><span style="width:8px;height:8px;border-radius:50%;background:#8B5CF6;display:inline-block"></span>ยังไม่ได้กรอก</div>
+          <div class="legend-row"><div class="legend-dot" style="background:var(--grn)"></div>&lt;80%</div>
+          <div class="legend-row"><div class="legend-dot" style="background:var(--acc)"></div>80-95%</div>
+          <div class="legend-row"><div class="legend-dot" style="background:var(--red)"></div>&gt;95%</div>
+        </div>
+      </div>
+      <div id="dash-cap-bars"></div>
+      <div id="cap-miss-notice" style="margin-top:10px"></div>
+    </div>
+    <div class="panel" style="margin-bottom:16px">
+      <div class="ph"><div class="pt">📈 Revenue + ค่าขนส่ง + ค่าฝากเก็บ (MB)</div><div class="ptag" id="trend-tag"></div></div>
+      <div id="ch-line-multi" style="min-height:160px"></div>
+    </div>
+    <div class="g3">
+      <div class="panel">
+        <div class="ph"><div class="pt">🥧 สัดส่วนรายได้แยกคลัง</div><div class="ptag" id="donut-rev-tag">MB</div></div>
+        <div id="ch-donut-rev" style="min-height:160px"></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><div class="pt">🥧 สัดส่วนค่าฝากเก็บแยกคลัง</div><div class="ptag">MB</div></div>
+        <div id="ch-donut-stor" style="min-height:160px"></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><div class="pt">📅 สถานะข้อมูลปี <span id="stat-yr"></span></div></div>
+        <div class="stat-grid" id="st-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="view-all" style="display:none">
+    <div class="panel" style="margin-bottom:16px">
+      <div class="ph"><div class="pt">📈 Revenue สะสมทุกเดือน (MB)</div></div>
+      <div id="ch-line-all" style="min-height:160px"></div>
+    </div>
+    <div class="cum-grid" id="cum-cards"></div>
+  </div>
+</div>
+
+<!-- ===== CAPACITY ===== -->
+<div id="s-capacity" class="sec">
+  <div class="save-ok" id="cap-ok">✅ บันทึก Capacity สำเร็จ!</div>
+  <!-- HQ -->
+  <div class="cap-card">
+    <div class="cap-stripe" style="background:linear-gradient(180deg,#1A3A6B,#2563B0)"></div>
+    <div class="cap-hdr">
+      <div><div class="cap-name" style="color:#1A3A6B">HQ Warehouse (Synnex)</div><div class="cap-sub">Bangna KM 7 · Pallet + Robot ASRS + Tote</div></div>
+      <div style="display:flex;gap:7px"><div class="cap-bdg" id="hq-pb">Pallet –</div><div class="cap-bdg" id="hq-tb">Tote –</div></div>
+    </div>
+    <div id="hq-progs"></div>
+    <div style="padding-left:14px;margin-bottom:12px">
+      <div style="font-size:10px;font-weight:600;color:var(--txt3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">รายละเอียด Floor</div>
+      <div class="floor-grid" id="hq-floors"></div>
+    </div>
+    <div class="cap-form">
+      <div class="cap-form-t">✏️ กรอกข้อมูล</div>
+      <div class="fg4" style="margin-bottom:8px">
+        <div class="fgrp"><label>Pallet ใช้อยู่</label><input type="number" id="hq-pu" placeholder="3900"></div>
+        <div class="fgrp"><label>Pallet Cap รวม</label><input type="number" id="hq-pc" placeholder="4432"></div>
+        <div class="fgrp"><label>Tote ใช้อยู่</label><input type="number" id="hq-tu" placeholder="9200"></div>
+        <div class="fgrp"><label>Tote Cap</label><input type="number" id="hq-tc" placeholder="9422"></div>
+      </div>
+      <div class="fg5">
+        <div class="fgrp"><label>Floor 1 (227)</label><input type="number" id="hq-f1" placeholder="220"></div>
+        <div class="fgrp"><label>F2 Robot (9422)</label><input type="number" id="hq-f2r" placeholder="8932"></div>
+        <div class="fgrp"><label>F2 ASRS (3584)</label><input type="number" id="hq-f2a" placeholder="3584"></div>
+        <div class="fgrp"><label>Floor 3 (221)</label><input type="number" id="hq-f3" placeholder="221"></div>
+        <div class="fgrp"><label>Floor 4 (400)</label><input type="number" id="hq-f4" placeholder="365"></div>
+      </div>
+    </div>
+  </div>
+  <!-- MDC -->
+  <div class="cap-card">
+    <div class="cap-stripe" style="background:linear-gradient(180deg,#3B82F6,#60A5FA)"></div>
+    <div class="cap-hdr">
+      <div><div class="cap-name" style="color:#1D4ED8">MDC — Bangna KM19</div><div class="cap-sub">Pallet Capacity: 6,700</div></div>
+      <div class="cap-bdg" id="mdc-b">Pallet –</div>
+    </div>
+    <div id="mdc-progs"></div>
+    <div class="cap-form"><div class="cap-form-t">✏️ กรอกข้อมูล</div>
+      <div class="fg3">
+        <div class="fgrp"><label>Pallet ใช้อยู่</label><input type="number" id="mdc-pu" placeholder="5372"></div>
+        <div class="fgrp"><label>Pallet Cap</label><input type="number" id="mdc-pc" placeholder="6700"></div>
+        <div class="fgrp"><label>SKU ทั้งหมด</label><input type="number" id="mdc-sku" placeholder="1123"></div>
+      </div>
+    </div>
+  </div>
+  <!-- TKS -->
+  <div class="cap-card">
+    <div class="cap-stripe" style="background:linear-gradient(180deg,#F59E0B,#FCD34D)"></div>
+    <div class="cap-hdr">
+      <div><div class="cap-name" style="color:#92400E">TKS — Sinsakorn</div><div class="cap-sub">Pallet Capacity: 1,512–1,728</div></div>
+      <div class="cap-bdg" id="tks-b">Pallet –</div>
+    </div>
+    <div id="tks-progs"></div>
+    <div class="cap-form"><div class="cap-form-t">✏️ กรอกข้อมูล</div>
+      <div class="fg3">
+        <div class="fgrp"><label>Pallet ใช้อยู่</label><input type="number" id="tks-pu" placeholder="1389"></div>
+        <div class="fgrp"><label>Pallet Cap</label><input type="number" id="tks-pc" placeholder="1512"></div>
+        <div class="fgrp"><label>SKU ทั้งหมด</label><input type="number" id="tks-sku" placeholder="318"></div>
+      </div>
+    </div>
+  </div>
+  <!-- BANGPU -->
+  <div class="cap-card">
+    <div class="cap-stripe" style="background:linear-gradient(180deg,#F97316,#FB923C)"></div>
+    <div class="cap-hdr">
+      <div><div class="cap-name" style="color:#9A3412">บางปู (TKS Bangpu)</div><div class="cap-sub">Pallet Capacity: 800 · คลังใหม่</div></div>
+      <div class="cap-bdg" id="bp-b">Pallet –</div>
+    </div>
+    <div id="bp-progs"></div>
+    <div class="cap-form"><div class="cap-form-t">✏️ กรอกข้อมูล</div>
+      <div class="fg3">
+        <div class="fgrp"><label>Pallet ใช้อยู่</label><input type="number" id="bp-pu" placeholder="145"></div>
+        <div class="fgrp"><label>Pallet Cap</label><input type="number" id="bp-pc" placeholder="800"></div>
+        <div class="fgrp"><label>SKU ทั้งหมด</label><input type="number" id="bp-sku" placeholder="41"></div>
+      </div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px">
+    <div style="display:flex;gap:12px;margin-right:auto;flex-wrap:wrap">
+      <div class="legend-row"><div class="legend-dot" style="background:var(--grn)"></div>&lt;80% ปกติ</div>
+      <div class="legend-row"><div class="legend-dot" style="background:var(--acc)"></div>80–95% เฝ้าระวัง</div>
+      <div class="legend-row"><div class="legend-dot" style="background:var(--red)"></div>&gt;95% วิกฤต</div>
+    </div>
+    <button class="btn-o" onclick="loadCap()">🔄 โหลดข้อมูลล่าสุด</button>
+    <button class="btn-g" onclick="saveCap()">☁️ บันทึก Capacity</button>
+  </div>
+</div>
+
+<!-- ===== ANALYSIS ===== -->
+<div id="s-analysis" class="sec">
+  <div class="an-nav">
+    <button class="an-t active" onclick="swAn('cost',this)">💰 ต้นทุนรวม</button>
+    <button class="an-t" onclick="swAn('transport',this)">🚚 ค่าขนส่ง</button>
+    <button class="an-t" onclick="swAn('storage',this)">🏭 ค่าฝากเก็บ</button>
+    <button class="an-t" onclick="swAn('pickpack',this)">📦 Pick-Pack</button>
+    <button class="an-t" onclick="swAn('sales',this)">📊 ยอดขาย</button>
+    <button class="an-t" onclick="swAn('compare',this)">⚖️ เปรียบเทียบคลัง</button>
+    <button class="an-t" onclick="swAn('caputilize',this)">📈 Capacity Trend</button>
+    <button class="an-t" onclick="swAn('yoy',this)">🔄 Year-over-Year</button>
+  </div>
+  <div id="an-cost" class="an-sec active"></div>
+  <div id="an-transport" class="an-sec"></div>
+  <div id="an-storage" class="an-sec"></div>
+  <div id="an-pickpack" class="an-sec"></div>
+  <div id="an-sales" class="an-sec"></div>
+  <div id="an-compare" class="an-sec"></div>
+  <div id="an-caputilize" class="an-sec"></div>
+  <div id="an-yoy" class="an-sec"></div>
+</div>
+
+<!-- ===== ALERTS ===== -->
+<div id="s-alerts" class="sec"><div id="alerts-body"></div></div>
+
+<!-- ===== ENTRY (ฟอร์มครบทุกช่อง) ===== -->
+<div id="s-entry" class="sec">
+  <div class="save-ok" id="save-ok">✅ บันทึกข้อมูลสำเร็จ</div>
+
+  <!-- Missing fields banner -->
+  <div id="missing-banner" style="display:none;background:#FEF2F2;border:1.5px solid #FECACA;border-left:4px solid #EF4444;border-radius:0 12px 12px 0;padding:12px 16px;margin-bottom:14px;align-items:flex-start;gap:10px;flex-wrap:wrap"></div>
+  <!-- เลือกเดือน/ปี -->
+  <div class="panel" style="margin-bottom:12px">
+    <div class="fsec">📅 เลือกช่วงเวลาและคลัง</div>
+    <div class="fg3">
+      <div class="fgrp"><label>ปี</label><select id="e-yr"><option>2026</option><option>2025</option><option>2024</option><option>2023</option><option>2022</option><option>2021</option><option>2020</option><option>2019</option><option>2018</option><option>2017</option></select></div>
+      <div class="fgrp"><label>เดือน</label><select id="e-mo"><option value="1">มกราคม</option><option value="2">กุมภาพันธ์</option><option value="3">มีนาคม</option><option value="4">เมษายน</option><option value="5">พฤษภาคม</option><option value="6">มิถุนายน</option><option value="7">กรกฎาคม</option><option value="8">สิงหาคม</option><option value="9">กันยายน</option><option value="10">ตุลาคม</option><option value="11">พฤศจิกายน</option><option value="12">ธันวาคม</option></select></div>
+      <div class="fgrp"><label>คลัง</label><select id="e-wh"><option value="All">รวมทุกคลัง (Summary)</option><option value="HQ">HQ (Synnex)</option><option value="MDC">MDC — Bangna KM19</option><option value="TKS">TKS — Sinsakorn</option><option value="Bangpu">บางปู (TKS Bangpu)</option></select></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn-o" onclick="loadFrm()">📥 โหลดข้อมูลที่มีอยู่</button>
+    </div>
+  </div>
+
+  <!-- Section 1: ข้อมูลหลัก -->
+  <div class="g2" style="margin-bottom:12px">
+    <div class="panel">
+      <div class="fsec">💰 ข้อมูลหลัก</div>
+      <div class="fg">
+        <div class="fgrp"><label>Revenue (ล้านบาท)</label><input type="number" id="e-rev" placeholder="เช่น 4414.6" step="0.01"></div>
+        <div class="fgrp"><label>Inventory (ล้านบาท)</label><input type="number" id="e-inv" placeholder="เช่น 4870.67" step="0.01"></div>
+      </div>
+      <div class="fg">
+        <div class="fgrp"><label>Working Days (วันทำงาน)</label><input type="number" id="e-wd" placeholder="เช่น 22"></div>
+        <div class="fgrp"><label>COA — Received Goods (SKU)</label><input type="number" id="e-coa" placeholder="เช่น 6441"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="fsec">📦 Pick-Pack Operations</div>
+      <div class="fg">
+        <div class="fgrp"><label>Orders (ใบสั่ง)</label><input type="number" id="e-ord" placeholder="เช่น 81909"></div>
+        <div class="fgrp"><label>Items (รายการ)</label><input type="number" id="e-itm" placeholder="เช่น 146696"></div>
+      </div>
+      <div class="fg">
+        <div class="fgrp"><label>Cartons (กล่อง)</label><input type="number" id="e-cartons" placeholder="เช่น 181943"></div>
+        <div class="fgrp"><label>Units (ชิ้น)</label><input type="number" id="e-units" placeholder="เช่น 1280280"></div>
+      </div>
+      <div class="fg">
+        <div class="fgrp"><label>Qty Received (Unit)</label><input type="number" id="e-qty" placeholder="เช่น 1399512"></div>
+        <div class="fgrp"><label>Prework Unit</label><input type="number" id="e-prework" placeholder="เช่น 1102428"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 2: ค่าขนส่ง -->
+  <div class="g2" style="margin-bottom:12px">
+    <div class="panel">
+      <div class="fsec">🚚 ค่าขนส่ง BKK (กรุงเทพฯ)</div>
+      <div class="fg">
+        <div class="fgrp"><label>จำนวน Drop BKK</label><input type="number" id="e-dbkk" placeholder="เช่น 10436"></div>
+        <div class="fgrp"><label>ค่าขนส่ง BKK รวม (บาท)</label><input type="number" id="e-cbkk" placeholder="เช่น 3471939.96" step="0.01"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="fsec">🚚 ค่าขนส่ง UPC (ต่างจังหวัด)</div>
+      <div class="fg">
+        <div class="fgrp"><label>จำนวน Drop UPC</label><input type="number" id="e-dupc" placeholder="เช่น 32259"></div>
+        <div class="fgrp"><label>ค่าขนส่ง UPC รวม (บาท)</label><input type="number" id="e-cupc" placeholder="เช่น 2680554" step="0.01"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 3: ค่าบริการคลัง IT -->
+  <div class="panel" style="margin-bottom:12px">
+    <div class="fsec">🏭 ค่าบริการบริหารคลังสินค้า IT (MDC+TKS)</div>
+    <div class="fg4">
+      <div class="fgrp"><label>Storage Charges (บาท)</label><input type="number" id="e-stor" placeholder="เช่น 1251907" step="0.01"></div>
+      <div class="fgrp"><label>ค่า Pick-Pack MDC+TKS (บาท)</label><input type="number" id="e-pp" placeholder="เช่น 849731" step="0.01"></div>
+      <div class="fgrp"><label>Additional Job (บาท)</label><input type="number" id="e-adjjob" placeholder="เช่น 35000" step="0.01"></div>
+      <div class="fgrp"><label>ค่า Receiving (บาท)</label><input type="number" id="e-recv" placeholder="เช่น 282232" step="0.01"></div>
+    </div>
+  </div>
+
+  <!-- Section 4: OT & อื่นๆ -->
+  <div class="panel" style="margin-bottom:12px">
+    <div class="fsec">⏰ Overtime & ข้อมูลเพิ่มเติม</div>
+    <div class="fg4">
+      <div class="fgrp"><label>OT ชั่วโมง (Hr.)</label><input type="number" id="e-ot-hr" placeholder="เช่น 2620.5" step="0.5"></div>
+      <div class="fgrp"><label>OT ค่าใช้จ่าย (บาท)</label><input type="number" id="e-ot-thb" placeholder="บาท" step="0.01"></div>
+      <div class="fgrp"><label>ค่าบริหารคลังกระดาษ TKS 3% (บาท)</label><input type="number" id="e-tks3" placeholder="บาท" step="0.01"></div>
+      <div class="fgrp"><label>ค่าบริหารคลังกระดาษ TKS 2% (บาท)</label><input type="number" id="e-tks2" placeholder="บาท" step="0.01"></div>
+    </div>
+    <div class="fgrp"><label>หมายเหตุ</label><textarea id="e-note" placeholder="หมายเหตุประจำเดือน..."></textarea></div>
+  </div>
+
+  <div style="display:flex;gap:10px;justify-content:flex-end;padding-top:12px">
+    <button class="btn-o" onclick="clearHighlight();clrFrm()">🔄 ล้างฟอร์ม</button>
+    <button class="btn-o" onclick="loadFrm();highlightMissing(+document.getElementById('e-yr').value,+document.getElementById('e-mo').value)">📥 โหลดและตรวจสอบ</button>
+    <button class="btn-g" onclick="saveFrm()">☁️ บันทึกข้อมูล</button>
+  </div>
+</div>
+
+<!-- ===== UPLOAD EXCEL ===== -->
+<div id="s-upload" class="sec">
+  <div class="upload-area" id="upload-area" onclick="document.getElementById('xl-file').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)">
+    <input type="file" id="xl-file" accept=".xlsx,.xls" onchange="handleFile(this.files[0])">
+    <div class="upload-ico">📊</div>
+    <div class="upload-title">คลิกหรือลากไฟล์ Excel มาวางที่นี่</div>
+    <div class="upload-sub">รองรับไฟล์ .xlsx และ .xls จาก Summary_1_Logistics หรือ format เดิม</div>
+  </div>
+  <div id="upload-status" style="margin-top:16px"></div>
+  <div id="upload-preview" style="margin-top:16px"></div>
+</div>
+
+<!-- ===== HISTORY ===== -->
+<div id="s-history" class="sec">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <div style="font-family:'Prompt',sans-serif;font-size:18px;font-weight:700;color:var(--b800)">ข้อมูลรายเดือน</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <select id="h-yr" onchange="rHist()" style="padding:7px 12px;border:1.5px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:'Sarabun',sans-serif;font-size:13px;background:var(--wh)">
+        <option>2026</option><option>2025</option><option>2024</option><option>2023</option><option>2022</option><option>2021</option><option>2020</option><option>2019</option><option>2018</option><option>2017</option>
+      </select>
+    </div>
+  </div>
+  <div class="tbl-wrap">
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>เดือน</th><th>Revenue (MB)</th><th>Inventory (MB)</th><th>Orders</th><th>Items</th><th>Cartons</th><th>Units</th><th>Drop BKK</th><th>Cost BKK (MB)</th><th>Drop UPC</th><th>Cost UPC (MB)</th><th>Storage (MB)</th><th>PP (MB)</th><th>Adj Job</th><th>Receiving</th><th>WD</th><th>COA</th><th>HQ%</th><th>MDC%</th><th>TKS%</th><th>บางปู%</th><th>สถานะ</th></tr></thead>
+        <tbody id="h-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SETTINGS ===== -->
+<div id="s-settings" class="sec">
+  <div class="g2">
+    <div class="panel">
+      <div class="fsec">🔥 Firebase Firestore ฐานข้อมูล</div>
+      <div class="info-box">วาง Firebase config จาก Project settings → General → Web app แล้วเปิด Firestore Database ให้พร้อมใช้งาน</div>
+      <div class="fgrp">
+        <label>Firebase config</label>
+        <textarea id="fb-config" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}' style="min-height:160px;font-family:monospace;font-size:12px"></textarea>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button class="btn-b" onclick="saveCfg()">✅ บันทึก</button>
+        <button class="btn-o" onclick="testCfg()">🔌 ทดสอบ</button>
+        <button class="btn-g" onclick="syncFromDb()">🔄 Sync จาก Database</button>
+        <button class="btn-b" onclick="pushAllToDb()" style="background:var(--grn)">📤 ส่งข้อมูลทั้งหมดไป Database</button>
+      </div>
+      <div id="cfg-msg" style="font-size:13px;margin-top:10px;color:var(--txt3)"></div>
+      <div id="sync-msg" style="font-size:13px;margin-top:8px;display:none"></div>
+      <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--bdr)">
+        <div style="font-size:12px;color:var(--txt3);margin-bottom:8px;font-weight:500">จัดการข้อมูล</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-o" onclick="exportData()">⬇️ Export JSON</button>
+          <button class="btn-red" onclick="if(confirm('รีเซ็ตข้อมูลในเครื่องทั้งหมด?')){localStorage.clear();location.reload()}">🗑️ รีเซ็ตข้อมูลในเครื่อง</button>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="fsec">🗄️ โครงสร้าง Database</div>
+      <div class="info-box">ข้อมูลจะถูกเก็บใน Firestore เป็น 2 collections: <strong>logistics</strong> และ <strong>capacity</strong> โดยใช้รหัสเอกสารรูปแบบ <strong>ปี_เดือน</strong> เช่น <strong>2026_4</strong></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Collection</th><th>Document</th><th>ใช้เก็บ</th></tr></thead>
+          <tbody>
+            <tr><td>logistics</td><td>2026_4</td><td>Revenue, Inventory, Orders, Cost, Storage, Pick Pack และข้อมูล Logistics รายเดือน</td></tr>
+            <tr><td>capacity</td><td>2026_4</td><td>HQ, MDC, TKS, บางปู capacity และ SKU รายเดือน</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="code-block" style="margin-top:12px">Firestore rules สำหรับทดสอบภายในเท่านั้น:
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
+
+เมื่อใช้งานจริงควรเปลี่ยนเป็น rules ที่จำกัดผู้ใช้ด้วย Firebase Authentication</div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /body -->
+<div class="footer">
+  <div class="fl">SYNNEX Logistics Intelligence · 5 Warehouses · Firebase DB · 2026</div>
+  <div class="fr">◆ SYNNEX Logistics ◆</div>
+</div>
+</div><!-- /shell -->
+
+<script>
+// ─── CONSTANTS ────────────────────────────────────────────────
+const MO=['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const MOF=['','มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+const WH_COLS=['#1A3A6B','#3B82F6','#F59E0B','#F97316'];
+const WH_KEYS=['HQ','MDC','TKS','Bangpu'];
+const WH_LBL=['HQ','MDC','TKS','บางปู'];
+const WH_PCT=[87,9,2,2];
+const now=new Date(), CY=now.getFullYear(), CM=now.getMonth()+1;
+
+// ─── HELPERS ──────────────────────────────────────────────────
+const N=(v,d=2)=>{if(v===null||v===undefined||isNaN(+v))return '—';return Number(v).toLocaleString('th-TH',{minimumFractionDigits:d,maximumFractionDigits:d})};
+const pCls=(p)=>p>=0.95?'p-danger':p>=0.80?'p-warn':'p-ok';
+const pCol=(p)=>p>=0.95?'#EF4444':p>=0.80?'#F59E0B':'#10B981';
+const pLbl=(p)=>(!p||isNaN(p))?'–':(p*100).toFixed(1)+'%';
+const pBdg=(p)=>{if(!p||isNaN(p))return 'background:#F1F5FD;color:#94A3B8';if(p>=0.95)return 'background:#FEE2E2;color:#991B1B';if(p>=0.80)return 'background:#FEF3C7;color:#92400E';return 'background:#D1FAE5;color:#065F46';};
+
+// ─── SEED DATA ────────────────────────────────────────────────
+const DB_SEED={"2017":{"1":{"rev":2661.0,"inv":null,"coa":4520,"qty":1630955,"prework":1092576,"ord":38773,"itm":92878,"cartons":181218,"units":1548116,"dbkk":11300,"cbkk":2497897.0,"dupc":15750,"cupc":2370845.53,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2661.0,"rev_mdc":null,"rev_tks":null,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"2":{"rev":2575.0,"inv":null,"coa":3891,"qty":2475413,"prework":1073446,"ord":37296,"itm":86665,"cartons":164529,"units":1538331,"dbkk":10720,"cbkk":2541441.0,"dupc":15228,"cupc":2330183.91,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2575.0,"rev_mdc":null,"rev_tks":null,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"3":{"rev":3000.0,"inv":null,"coa":5338,"qty":1890730,"prework":1181150,"ord":42986,"itm":101890,"cartons":188032,"units":1661773,"dbkk":16597,"cbkk":2686835.0,"dupc":16532,"cupc":2560876.98,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3000.0,"rev_mdc":null,"rev_tks":null,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"4":{"rev":2584.0,"inv":null,"coa":4196,"qty":1171425,"prework":956418,"ord":30048,"itm":70896,"cartons":156408,"units":1334583,"dbkk":8604,"cbkk":null,"dupc":758,"cupc":161000.0,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2584.0,"rev_mdc":null,"rev_tks":null,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"5":{"rev":2708.0,"inv":null,"coa":4581,"qty":1452475,"prework":1091262,"ord":39416,"itm":94114,"cartons":183919,"units":1550418,"dbkk":10520,"cbkk":2618385.0,"dupc":15682,"cupc":2642822.75,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2708.0,"rev_mdc":null,"rev_tks":null,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"6":{"rev":3032.0,"inv":null,"coa":4853,"qty":1360639,"prework":1183249,"ord":43503,"itm":111663,"cartons":199531,"units":1674964,"dbkk":19893,"cbkk":2688398.0,"dupc":16423,"cupc":2199469.77,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3032.0,"rev_mdc":null,"rev_tks":null,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"7":{"rev":2279.0,"inv":null,"coa":4837,"qty":1599568,"prework":1027664,"ord":38420,"itm":96211,"cartons":167334,"units":1423298,"dbkk":17699,"cbkk":2544886.0,"dupc":14792,"cupc":2155718.76,"wd":20,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2279.0,"rev_mdc":null,"rev_tks":null,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"8":{"rev":2825.0,"inv":null,"coa":5058,"qty":1481452,"prework":1083526,"ord":46449,"itm":118070,"cartons":193130,"units":1589689,"dbkk":12197,"cbkk":2693836.0,"dupc":17731,"cupc":3331547.56,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2825.0,"rev_mdc":null,"rev_tks":null,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"9":{"rev":2995.0,"inv":null,"coa":5076,"qty":1642023,"prework":1125712,"ord":41104,"itm":102032,"cartons":184837,"units":1658955,"dbkk":10650,"cbkk":2622426.0,"dupc":14880,"cupc":2446722.74,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2995.0,"rev_mdc":null,"rev_tks":null,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"10":{"rev":2318.0,"inv":null,"coa":5082,"qty":1414018,"prework":981924,"ord":35508,"itm":85679,"cartons":136662,"units":1327471,"dbkk":9363,"cbkk":2660331.0,"dupc":12245,"cupc":1691649.79,"wd":20,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2318.0,"rev_mdc":null,"rev_tks":null,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"11":{"rev":2772.0,"inv":null,"coa":4782,"qty":1534210,"prework":1129807,"ord":42346,"itm":108955,"cartons":173931,"units":1615341,"dbkk":11190,"cbkk":2416940.0,"dupc":14872,"cupc":2379641.12,"wd":23,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2772.0,"rev_mdc":null,"rev_tks":null,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"12":{"rev":2889.0,"inv":null,"coa":3897,"qty":1406268,"prework":1052274,"ord":34039,"itm":83505,"cartons":174941,"units":1629464,"dbkk":9457,"cbkk":2382091.0,"dupc":12064,"cupc":2055649.25,"wd":20,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2889.0,"rev_mdc":null,"rev_tks":null,"inv_hq":null,"inv_mdc":null,"inv_tks":null}},"2018":{"1":{"rev":2872.0,"inv":null,"coa":4845,"qty":1868552,"prework":1108500,"ord":37852,"itm":89588,"cartons":182078,"units":1569347,"dbkk":10354,"cbkk":2559155.0,"dupc":13535,"cupc":2189000.6,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2872.0,"rev_mdc":null,"rev_tks":null,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"2":{"rev":2678.0,"inv":null,"coa":4660,"qty":1637332,"prework":1106646,"ord":35331,"itm":84719,"cartons":168540,"units":1418959,"dbkk":9629,"cbkk":2590945.0,"dupc":12915,"cupc":2111072.21,"wd":20,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2678.0,"rev_mdc":null,"rev_tks":null,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"3":{"rev":3464.0,"inv":null,"coa":5514,"qty":1815606,"prework":1252397,"ord":38867,"itm":93124,"cartons":201492,"units":1841967,"dbkk":10738,"cbkk":2723815.0,"dupc":13630,"cupc":2399165.23,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3464.0,"rev_mdc":null,"rev_tks":null,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"4":{"rev":2812.0,"inv":null,"coa":4183,"qty":1160169,"prework":1054804,"ord":29861,"itm":71583,"cartons":150872,"units":1277016,"dbkk":8679,"cbkk":2413665.0,"dupc":11378,"cupc":1801624.72,"wd":19,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2812.0,"rev_mdc":null,"rev_tks":null,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"5":{"rev":3390.0,"inv":null,"coa":5173,"qty":1943261,"prework":1191470,"ord":40815,"itm":97289,"cartons":199595,"units":1822445,"dbkk":11245,"cbkk":3032950.0,"dupc":15196,"cupc":2352372.79,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3390.0,"rev_mdc":null,"rev_tks":null,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"6":{"rev":3410.0,"inv":null,"coa":5340,"qty":1743733,"prework":1241969,"ord":40657,"itm":97309,"cartons":199770,"units":2329549,"dbkk":11474,"cbkk":2904650.0,"dupc":15207,"cupc":2563774.97,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3410.0,"rev_mdc":null,"rev_tks":null,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"7":{"rev":2778.0,"inv":null,"coa":5187,"qty":1707102,"prework":1067718,"ord":38494,"itm":93665,"cartons":165587,"units":1692926,"dbkk":10392,"cbkk":2655381.0,"dupc":14430,"cupc":1876826.73,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2695.0,"rev_mdc":null,"rev_tks":83.0,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"8":{"rev":3323.0,"inv":null,"coa":5458,"qty":1895870,"prework":1172139,"ord":43224,"itm":103175,"cartons":172342,"units":1921973,"dbkk":11992,"cbkk":2638345.0,"dupc":17188,"cupc":2273730.31,"wd":23,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3167.0,"rev_mdc":null,"rev_tks":156.0,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"9":{"rev":3268.0,"inv":null,"coa":5149,"qty":1862021,"prework":1210350,"ord":36036,"itm":87101,"cartons":163335,"units":1946789,"dbkk":9301,"cbkk":2799255.0,"dupc":14698,"cupc":2308919.32,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3059.0,"rev_mdc":null,"rev_tks":209.0,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"10":{"rev":3065.0,"inv":null,"coa":5103,"qty":1736945,"prework":1251331,"ord":28350,"itm":64533,"cartons":130260,"units":1276660,"dbkk":8244,"cbkk":2635451.0,"dupc":10984,"cupc":1367267.81,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2868.0,"rev_mdc":null,"rev_tks":197.0,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"11":{"rev":3936.0,"inv":null,"coa":4977,"qty":1673540,"prework":1378498,"ord":34271,"itm":81518,"cartons":153146,"units":1926278,"dbkk":9218,"cbkk":2893802.0,"dupc":13376,"cupc":2099954.67,"wd":23,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3692.0,"rev_mdc":null,"rev_tks":244.0,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"12":{"rev":3492.0,"inv":null,"coa":4580,"qty":1663472,"prework":1033967,"ord":29567,"itm":73579,"cartons":151979,"units":1802599,"dbkk":7852,"cbkk":2373746.54,"dupc":7942,"cupc":1685204.0,"wd":20,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3308.0,"rev_mdc":null,"rev_tks":184.0,"inv_hq":null,"inv_mdc":null,"inv_tks":null}},"2019":{"1":{"rev":3148.0,"inv":null,"coa":5631,"qty":2204600,"prework":1118898,"ord":38806,"itm":94109,"cartons":180325,"units":1832173,"dbkk":9412,"cbkk":3130689.78,"dupc":11783,"cupc":2098544.84,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3047.0,"rev_mdc":null,"rev_tks":101.0,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"2":{"rev":3094.0,"inv":null,"coa":4549,"qty":1527977,"prework":1052991,"ord":36466,"itm":87437,"cartons":180858,"units":1694459,"dbkk":7753,"cbkk":2863278.43,"dupc":11779,"cupc":1860095.0,"wd":19,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3047.0,"rev_mdc":null,"rev_tks":47.0,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"3":{"rev":3546.0,"inv":null,"coa":6079,"qty":1733089,"prework":1320000,"ord":38966,"itm":94073,"cartons":223936,"units":2075812,"dbkk":9281,"cbkk":3198104.18,"dupc":11955,"cupc":2046164.0,"wd":19,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3503.0,"rev_mdc":null,"rev_tks":43.0,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"4":{"rev":2760.0,"inv":null,"coa":4872,"qty":1522865,"prework":1157402,"ord":33454,"itm":81093,"cartons":163635,"units":1379619,"dbkk":7839,"cbkk":2689309.8,"dupc":10825,"cupc":2061956.41,"wd":19,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2742.0,"rev_mdc":null,"rev_tks":18.0,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"5":{"rev":2515.0,"inv":null,"coa":5435,"qty":1428932,"prework":1319157,"ord":38836,"itm":99070,"cartons":177165,"units":1550082,"dbkk":8989,"cbkk":2759434.97,"dupc":11672,"cupc":2348421.5,"wd":20,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2498.0,"rev_mdc":null,"rev_tks":17.0,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"6":{"rev":2543.0,"inv":null,"coa":5444,"qty":1256368,"prework":1412104,"ord":40095,"itm":96874,"cartons":231532,"units":1779456,"dbkk":10232,"cbkk":3054702.72,"dupc":11862,"cupc":2221693.0,"wd":19,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2518.0,"rev_mdc":null,"rev_tks":25.0,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"7":{"rev":2580.0,"inv":null,"coa":6308,"qty":2382210,"prework":1180212,"ord":42061,"itm":99838,"cartons":201627,"units":1884232,"dbkk":9689,"cbkk":3390945.0,"dupc":13265,"cupc":2590006.51,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2555.0,"rev_mdc":null,"rev_tks":25.0,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"8":{"rev":2547.0,"inv":null,"coa":5702,"qty":1478646,"prework":1123536,"ord":42962,"itm":103864,"cartons":194352,"units":1819674,"dbkk":10474,"cbkk":3246735.0,"dupc":13098,"cupc":2180394.11,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2524.0,"rev_mdc":null,"rev_tks":23.0,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"9":{"rev":2872.0,"inv":null,"coa":5904,"qty":1346761,"prework":1069962,"ord":41791,"itm":98479,"cartons":219284,"units":1743733,"dbkk":10065,"cbkk":3287351.0,"dupc":12555,"cupc":2333798.59,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2852.0,"rev_mdc":null,"rev_tks":20.0,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"10":{"rev":3236.0,"inv":null,"coa":6930,"qty":1782351,"prework":1007554,"ord":39857,"itm":98445,"cartons":189391,"units":1490991,"dbkk":9871,"cbkk":3257649.0,"dupc":12211,"cupc":2149755.0,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3215.0,"rev_mdc":null,"rev_tks":21.0,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"11":{"rev":3271.0,"inv":null,"coa":6099,"qty":1714323,"prework":1073332,"ord":41525,"itm":102739,"cartons":182655,"units":1755401,"dbkk":11221,"cbkk":3334977.0,"dupc":12409,"cupc":1721006.33,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3251.0,"rev_mdc":null,"rev_tks":20.0,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"12":{"rev":3014.0,"inv":null,"coa":4495,"qty":1265282,"prework":1170904,"ord":36614,"itm":94301,"cartons":186659,"units":1645656,"dbkk":9107,"cbkk":2926561.0,"dupc":11702,"cupc":2170531.0,"wd":20,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2983.0,"rev_mdc":null,"rev_tks":31.0,"inv_hq":null,"inv_mdc":null,"inv_tks":null}},"2020":{"1":{"rev":2725.0,"inv":null,"coa":6705,"qty":2050887,"prework":1281805,"ord":40253,"itm":97514,"cartons":183317,"units":1828523,"dbkk":9451,"cbkk":2992722.0,"dupc":12112,"cupc":2185167.3,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2702.0,"rev_mdc":null,"rev_tks":23.0,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"2":{"rev":2397.0,"inv":null,"coa":4980,"qty":1198021,"prework":1054237,"ord":38214,"itm":88634,"cartons":180006,"units":1417593,"dbkk":9388,"cbkk":2947467.45,"dupc":11880,"cupc":1785448.77,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2377.0,"rev_mdc":null,"rev_tks":20.0,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"3":{"rev":2301.0,"inv":null,"coa":6138,"qty":1289161,"prework":911164,"ord":34781,"itm":73662,"cartons":145357,"units":1074494,"dbkk":9450,"cbkk":2674375.15,"dupc":11805,"cupc":2345686.7,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2278.0,"rev_mdc":null,"rev_tks":23.0,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"4":{"rev":2093.0,"inv":null,"coa":5443,"qty":747189,"prework":963078,"ord":35959,"itm":73075,"cartons":144089,"units":956878,"dbkk":8975,"cbkk":1883509.1,"dupc":11531,"cupc":2242219.12,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2079.0,"rev_mdc":null,"rev_tks":14.0,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"5":{"rev":3081.0,"inv":null,"coa":5148,"qty":982788,"prework":1138400,"ord":43564,"itm":98885,"cartons":195849,"units":1366273,"dbkk":10850,"cbkk":2304476.4,"dupc":14425,"cupc":3239246.6,"wd":20,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3049.0,"rev_mdc":null,"rev_tks":32.0,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"6":{"rev":3567.0,"inv":null,"coa":6440,"qty":1515280,"prework":1182500,"ord":53701,"itm":120635,"cartons":233516,"units":1722323,"dbkk":12559,"cbkk":2760545.0,"dupc":15148,"cupc":3637111.0,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3545.0,"rev_mdc":null,"rev_tks":22.0,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"7":{"rev":2901.0,"inv":null,"coa":6815,"qty":1505509,"prework":1064472,"ord":45527,"itm":97671,"cartons":193395,"units":1421148,"dbkk":9362,"cbkk":2581963.7,"dupc":13996,"cupc":3071418.18,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2884.0,"rev_mdc":null,"rev_tks":17.0,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"8":{"rev":2468.0,"inv":null,"coa":6219,"qty":1608701,"prework":1323252,"ord":45395,"itm":98055,"cartons":193038,"units":1555666,"dbkk":10348,"cbkk":2593345.6,"dupc":14718,"cupc":2827884.95,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2451.0,"rev_mdc":null,"rev_tks":17.0,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"9":{"rev":2148.0,"inv":null,"coa":6206,"qty":1298772,"prework":1200347,"ord":45015,"itm":92313,"cartons":173243,"units":1580347,"dbkk":10194,"cbkk":2404929.1,"dupc":14023,"cupc":3220402.8,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2129.0,"rev_mdc":null,"rev_tks":19.0,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"10":{"rev":2364.0,"inv":null,"coa":5886,"qty":1577880,"prework":1260418,"ord":39082,"itm":84783,"cartons":162053,"units":1332338,"dbkk":10014,"cbkk":2508000.7,"dupc":13437,"cupc":2794812.8,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2348.0,"rev_mdc":null,"rev_tks":16.0,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"11":{"rev":3156.0,"inv":null,"coa":6088,"qty":1364653,"prework":1111627,"ord":40383,"itm":93176,"cartons":172992,"units":1603912,"dbkk":10560,"cbkk":2694972.5,"dupc":12847,"cupc":2866436.33,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3140.0,"rev_mdc":null,"rev_tks":16.0,"inv_hq":null,"inv_mdc":null,"inv_tks":null},"12":{"rev":3260.0,"inv":null,"coa":6258,"qty":1391676,"prework":1102802,"ord":39339,"itm":88359,"cartons":172583,"units":1512118,"dbkk":9804,"cbkk":2794481.7,"dupc":13820,"cupc":2708790.78,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3244.0,"rev_mdc":null,"rev_tks":16.0,"inv_hq":null,"inv_mdc":null,"inv_tks":null}},"2021":{"1":{"rev":2917.0,"inv":2281.0,"coa":6966,"qty":1516079,"prework":1085709,"ord":48748,"itm":100424,"cartons":185265,"units":1488641,"dbkk":9772,"cbkk":2612944.2,"dupc":14340,"cupc":3214297.91,"wd":20,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2900.0,"rev_mdc":null,"rev_tks":17.0,"inv_hq":2281.0,"inv_mdc":null,"inv_tks":null},"2":{"rev":2751.0,"inv":2219.0,"coa":6402,"qty":1496153,"prework":1055772,"ord":47542,"itm":95520,"cartons":188209,"units":1476181,"dbkk":10945,"cbkk":2150381.7,"dupc":14297,"cupc":3138924.08,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2733.0,"rev_mdc":null,"rev_tks":18.0,"inv_hq":2219.0,"inv_mdc":null,"inv_tks":null},"3":{"rev":3094.0,"inv":2056.0,"coa":7204,"qty":1344213,"prework":1298771,"ord":54208,"itm":107024,"cartons":220368,"units":1714104,"dbkk":11848,"cbkk":3312435.0,"dupc":15862,"cupc":2940901.27,"wd":23,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3076.0,"rev_mdc":null,"rev_tks":18.0,"inv_hq":2056.0,"inv_mdc":null,"inv_tks":null},"4":{"rev":2541.0,"inv":2800.0,"coa":6367,"qty":1743958,"prework":988438,"ord":40155,"itm":76524,"cartons":149551,"units":1106989,"dbkk":8781,"cbkk":2195497.0,"dupc":15862,"cupc":2940901.27,"wd":17,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2526.0,"rev_mdc":null,"rev_tks":15.0,"inv_hq":2800.0,"inv_mdc":null,"inv_tks":null},"5":{"rev":2879.0,"inv":2783.0,"coa":6249,"qty":1242398,"prework":1128400,"ord":51139,"itm":94706,"cartons":191209,"units":1251054,"dbkk":8993,"cbkk":2724468.0,"dupc":13433,"cupc":2547064.0,"wd":20,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2862.0,"rev_mdc":null,"rev_tks":17.0,"inv_hq":2783.0,"inv_mdc":null,"inv_tks":null},"6":{"rev":3063.0,"inv":2280.0,"coa":6553,"qty":1118572,"prework":1268524,"ord":55428,"itm":110311,"cartons":198760,"units":1432469,"dbkk":10864,"cbkk":2950299.0,"dupc":15482,"cupc":2718498.12,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3048.0,"rev_mdc":null,"rev_tks":15.0,"inv_hq":2280.0,"inv_mdc":null,"inv_tks":null},"7":{"rev":2898.0,"inv":2680.0,"coa":6777,"qty":1266886,"prework":942826,"ord":50365,"itm":104826,"cartons":180560,"units":1249258,"dbkk":9291,"cbkk":2650327.0,"dupc":17547,"cupc":2912447.47,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2882.0,"rev_mdc":null,"rev_tks":16.0,"inv_hq":2680.0,"inv_mdc":null,"inv_tks":null},"8":{"rev":2765.0,"inv":2668.0,"coa":5754,"qty":1046663,"prework":1112149,"ord":61968,"itm":128994,"cartons":204545,"units":1449556,"dbkk":9320,"cbkk":2834440.0,"dupc":14704,"cupc":3091347.03,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2747.0,"rev_mdc":null,"rev_tks":18.0,"inv_hq":2668.0,"inv_mdc":null,"inv_tks":null},"9":{"rev":3348.0,"inv":2498.0,"coa":6590,"qty":1308439,"prework":1158768,"ord":58211,"itm":123426,"cartons":209552,"units":1528265,"dbkk":11464,"cbkk":3187555.0,"dupc":15921,"cupc":3339224.32,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3330.0,"rev_mdc":null,"rev_tks":18.0,"inv_hq":2498.0,"inv_mdc":null,"inv_tks":null},"10":{"rev":3585.0,"inv":3401.0,"coa":6377,"qty":1833715,"prework":1079495,"ord":48101,"itm":98408,"cartons":186438,"units":1444126,"dbkk":10274,"cbkk":2913240.0,"dupc":13187,"cupc":2639819.0,"wd":20,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3571.0,"rev_mdc":null,"rev_tks":14.0,"inv_hq":3401.0,"inv_mdc":null,"inv_tks":null},"11":{"rev":3927.0,"inv":3564.0,"coa":6878,"qty":1806307,"prework":1367865,"ord":57547,"itm":117386,"cartons":210208,"units":1772103,"dbkk":11285,"cbkk":3058091.57,"dupc":16102,"cupc":3147299.18,"wd":23,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3910.0,"rev_mdc":null,"rev_tks":17.0,"inv_hq":3564.0,"inv_mdc":null,"inv_tks":null},"12":{"rev":3787.0,"inv":3140.0,"coa":6179,"qty":1546992,"prework":1169187,"ord":50658,"itm":105180,"cartons":195936,"units":1662039,"dbkk":8684,"cbkk":2478785.0,"dupc":14011,"cupc":2792917.34,"wd":23,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3772.0,"rev_mdc":null,"rev_tks":15.0,"inv_hq":3140.0,"inv_mdc":null,"inv_tks":null}},"2022":{"1":{"rev":3467.0,"inv":4031.0,"coa":6494,"qty":1741449,"prework":1297011,"ord":50626,"itm":105745,"cartons":198119,"units":1460201,"dbkk":11260,"cbkk":3384862.0,"dupc":15208,"cupc":3588177.89,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3449.0,"rev_mdc":null,"rev_tks":18.0,"inv_hq":4031.0,"inv_mdc":null,"inv_tks":null},"2":{"rev":2872.0,"inv":4006.0,"coa":5929,"qty":1222786,"prework":1100463,"ord":51189,"itm":98641,"cartons":186380,"units":1417735,"dbkk":11245,"cbkk":2880954.0,"dupc":12342,"cupc":2441648.24,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2855.0,"rev_mdc":null,"rev_tks":17.0,"inv_hq":4006.0,"inv_mdc":null,"inv_tks":null},"3":{"rev":3690.0,"inv":3682.0,"coa":6672,"qty":1782109,"prework":1110694,"ord":54513,"itm":109100,"cartons":211629,"units":1711341,"dbkk":11619,"cbkk":3282592.0,"dupc":14413,"cupc":2905597.26,"wd":24,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3669.0,"rev_mdc":null,"rev_tks":21.0,"inv_hq":3682.0,"inv_mdc":null,"inv_tks":null},"4":{"rev":2652.0,"inv":4045.0,"coa":5341,"qty":946986,"prework":825958,"ord":38450,"itm":75217,"cartons":156360,"units":1118001,"dbkk":9631,"cbkk":2575251.0,"dupc":12043,"cupc":2343809.6,"wd":18,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2637.0,"rev_mdc":null,"rev_tks":15.0,"inv_hq":4045.0,"inv_mdc":null,"inv_tks":null},"5":{"rev":3491.0,"inv":3797.0,"coa":6048,"qty":1341644,"prework":931638,"ord":51873,"itm":105614,"cartons":202512,"units":1492596,"dbkk":8411,"cbkk":3093755.0,"dupc":14878,"cupc":2989861.76,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3491.0,"rev_mdc":null,"rev_tks":null,"inv_hq":3797.0,"inv_mdc":null,"inv_tks":null},"6":{"rev":3412.8,"inv":3328.0,"coa":6256,"qty":1372863,"prework":973273,"ord":51969,"itm":99728,"cartons":208283,"units":1603391,"dbkk":10669,"cbkk":4065002.0,"dupc":14194,"cupc":2914387.88,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3395.0,"rev_mdc":null,"rev_tks":17.8,"inv_hq":3328.0,"inv_mdc":null,"inv_tks":null},"7":{"rev":3155.7,"inv":4158.0,"coa":6710,"qty":1377439,"prework":1029611,"ord":47948,"itm":94122,"cartons":165072,"units":1032312,"dbkk":9542,"cbkk":3637070.4,"dupc":13775,"cupc":2612866.06,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3139.0,"rev_mdc":null,"rev_tks":16.7,"inv_hq":4158.0,"inv_mdc":null,"inv_tks":null},"8":{"rev":3134.0,"inv":4315.0,"coa":6571,"qty":1206234,"prework":1136383,"ord":56880,"itm":111685,"cartons":191482,"units":1379518,"dbkk":12187,"cbkk":3726174.4,"dupc":14103,"cupc":2566871.02,"wd":23,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3134.0,"rev_mdc":null,"rev_tks":null,"inv_hq":4315.0,"inv_mdc":null,"inv_tks":null},"9":{"rev":3854.0,"inv":3745.0,"coa":6574,"qty":1144517,"prework":1186073,"ord":54535,"itm":113223,"cartons":220263,"units":1648928,"dbkk":12520,"cbkk":4073246.6,"dupc":14006,"cupc":3279778.18,"wd":23,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3854.0,"rev_mdc":null,"rev_tks":null,"inv_hq":3745.0,"inv_mdc":null,"inv_tks":null},"10":{"rev":3226.0,"inv":3732.0,"coa":5673,"qty":1249974,"prework":1022439,"ord":43831,"itm":89213,"cartons":150614,"units":1111350,"dbkk":10894,"cbkk":3326790.8,"dupc":11842,"cupc":2793385.54,"wd":20,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3226.0,"rev_mdc":null,"rev_tks":null,"inv_hq":3732.0,"inv_mdc":null,"inv_tks":null},"11":{"rev":3016.6,"inv":4822.0,"coa":4044,"qty":1435069,"prework":1236086,"ord":45375,"itm":94319,"cartons":130268,"units":1372918,"dbkk":10114,"cbkk":3907199.4,"dupc":12027,"cupc":2209884.67,"wd":24,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2692.0,"rev_mdc":307.0,"rev_tks":17.6,"inv_hq":4116.0,"inv_mdc":687.0,"inv_tks":19.0},"12":{"rev":3168.0,"inv":4194.0,"coa":4229,"qty":788590,"prework":1169836,"ord":37446,"itm":77016,"cartons":118971,"units":1072347,"dbkk":7991,"cbkk":2489081.0,"dupc":6236,"cupc":1419958.77,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2716.0,"rev_mdc":452.0,"rev_tks":null,"inv_hq":3561.0,"inv_mdc":617.0,"inv_tks":16.0}},"2023":{"1":{"rev":2768.16,"inv":4708.0,"coa":3869,"qty":1236676,"prework":1088239,"ord":35165,"itm":73100,"cartons":92312,"units":1022550,"dbkk":9260,"cbkk":3043004.2,"dupc":7770,"cupc":1417016.0,"wd":20,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":1873.0,"ot_thb":null,"wh":"All","rev_hq":2229.0,"rev_mdc":519.0,"rev_tks":20.16,"inv_hq":3719.0,"inv_mdc":978.0,"inv_tks":11.0},"2":{"rev":3081.9,"inv":4217.0,"coa":3623,"qty":1074209,"prework":1122720,"ord":36334,"itm":75777,"cartons":106057,"units":1234348,"dbkk":8900,"cbkk":2349811.4,"dupc":2923,"cupc":1305373.44,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":2251.5,"ot_thb":null,"wh":"All","rev_hq":2505.0,"rev_mdc":560.0,"rev_tks":16.9,"inv_hq":3263.0,"inv_mdc":945.0,"inv_tks":9.0},"3":{"rev":3421.0,"inv":3615.0,"coa":5210,"qty":1170128,"prework":1234912,"ord":43349,"itm":83588,"cartons":119560,"units":1430345,"dbkk":9327,"cbkk":2767183.2,"dupc":11573,"cupc":2488443.91,"wd":23,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":1908.5,"ot_thb":null,"wh":"All","rev_hq":2632.0,"rev_mdc":768.0,"rev_tks":21.0,"inv_hq":2686.0,"inv_mdc":919.0,"inv_tks":10.0},"4":{"rev":2186.7,"inv":4337.0,"coa":4048,"qty":989562,"prework":877933,"ord":33100,"itm":65038,"cartons":78549,"units":944044,"dbkk":7390,"cbkk":1994716.6,"dupc":7551,"cupc":1240275.23,"wd":17,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":1873.5,"ot_thb":null,"wh":"All","rev_hq":1698.0,"rev_mdc":477.0,"rev_tks":11.7,"inv_hq":3178.0,"inv_mdc":1147.0,"inv_tks":12.0},"5":{"rev":3074.3,"inv":3960.0,"coa":5311,"qty":1518830,"prework":1270639,"ord":45675,"itm":90485,"cartons":121971,"units":1441850,"dbkk":9901,"cbkk":2694388.6,"dupc":12550,"cupc":1993480.2,"wd":23,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":2933.5,"ot_thb":null,"wh":"All","rev_hq":2481.0,"rev_mdc":578.0,"rev_tks":15.3,"inv_hq":2991.0,"inv_mdc":961.0,"inv_tks":8.0},"6":{"rev":3449.6,"inv":3281.0,"coa":5690,"qty":1176554,"prework":1272622,"ord":45815,"itm":91739,"cartons":136058,"units":1488930,"dbkk":10222,"cbkk":2623272.4,"dupc":11382,"cupc":2300404.46,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":3248.5,"ot_thb":null,"wh":"All","rev_hq":2832.0,"rev_mdc":598.0,"rev_tks":19.6,"inv_hq":2511.0,"inv_mdc":762.0,"inv_tks":8.0},"7":{"rev":2902.0,"inv":4118.0,"coa":5382,"qty":1418090,"prework":1190795,"ord":44110,"itm":87074,"cartons":114619,"units":1211276,"dbkk":9084,"cbkk":2425095.8,"dupc":10468,"cupc":1713978.37,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":3111.0,"ot_thb":null,"wh":"All","rev_hq":2370.0,"rev_mdc":515.0,"rev_tks":17.0,"inv_hq":3309.0,"inv_mdc":800.0,"inv_tks":9.0},"8":{"rev":2613.12,"inv":4090.0,"coa":5240,"qty":1618502,"prework":1404846,"ord":50405,"itm":96731,"cartons":120191,"units":1282441,"dbkk":10802,"cbkk":2848323.58,"dupc":10698,"cupc":1941994.5,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":4269.5,"ot_thb":null,"wh":"All","rev_hq":2188.0,"rev_mdc":409.0,"rev_tks":16.12,"inv_hq":3308.0,"inv_mdc":772.0,"inv_tks":10.0},"9":{"rev":3845.9,"inv":3318.0,"coa":5345,"qty":898416,"prework":1457021,"ord":47176,"itm":102396,"cartons":136793,"units":1576847,"dbkk":11062,"cbkk":2718466.32,"dupc":11533,"cupc":2276577.3,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":6051.5,"ot_thb":null,"wh":"All","rev_hq":3376.0,"rev_mdc":454.0,"rev_tks":15.9,"inv_hq":2595.0,"inv_mdc":712.0,"inv_tks":11.0},"10":{"rev":3365.59,"inv":4134.0,"coa":5113,"qty":1251130,"prework":1229613,"ord":43521,"itm":89108,"cartons":97573,"units":1010964,"dbkk":10666,"cbkk":2697282.45,"dupc":10607,"cupc":1772236.2,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":4931.0,"ot_thb":null,"wh":"All","rev_hq":2900.0,"rev_mdc":451.0,"rev_tks":14.59,"inv_hq":3376.0,"inv_mdc":747.0,"inv_tks":11.0},"11":{"rev":3522.93,"inv":4229.0,"coa":5530,"qty":1721514,"prework":1402321,"ord":49370,"itm":102514,"cartons":123353,"units":1439544,"dbkk":11613,"cbkk":2955868.1,"dupc":7964,"cupc":1803775.81,"wd":23,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":4617.5,"ot_thb":null,"wh":"All","rev_hq":3145.0,"rev_mdc":362.0,"rev_tks":15.93,"inv_hq":3556.0,"inv_mdc":666.0,"inv_tks":7.0},"12":{"rev":2796.49,"inv":3533.7,"coa":4186,"qty":875290,"prework":1237004,"ord":38875,"itm":76688,"cartons":105110,"units":1294328,"dbkk":10181,"cbkk":2483138.42,"dupc":7014,"cupc":1793064.88,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2503.6,"rev_mdc":279.0,"rev_tks":13.89,"inv_hq":2928.33,"inv_mdc":599.0,"inv_tks":6.37}},"2024":{"1":{"rev":3270.22,"inv":3713.95,"coa":5207,"qty":1160914,"prework":1301839,"ord":50405,"itm":100812,"cartons":114656,"units":1243157,"dbkk":10803,"cbkk":2779646.65,"dupc":12140,"cupc":1652954.59,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":2620.5,"ot_thb":null,"wh":"All","rev_hq":2830.13,"rev_mdc":423.0,"rev_tks":17.09,"inv_hq":3140.35,"inv_mdc":567.06,"inv_tks":6.54},"2":{"rev":3151.03,"inv":3521.74,"coa":5071,"qty":1214176,"prework":1250460,"ord":55069,"itm":105347,"cartons":138380,"units":1300966,"dbkk":10609,"cbkk":2626384.78,"dupc":3403,"cupc":1893594.17,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":3368.5,"ot_thb":null,"wh":"All","rev_hq":2844.6,"rev_mdc":291.8,"rev_tks":14.63,"inv_hq":2976.41,"inv_mdc":532.42,"inv_tks":12.91},"3":{"rev":3207.7,"inv":3655.92,"coa":6100,"qty":1394096,"prework":1282299,"ord":59701,"itm":109604,"cartons":172708,"units":1354328,"dbkk":10739,"cbkk":3026614.71,"dupc":3628,"cupc":1844888.17,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":4344.0,"ot_thb":null,"wh":"All","rev_hq":2888.5,"rev_mdc":304.8,"rev_tks":14.4,"inv_hq":3148.53,"inv_mdc":473.16,"inv_tks":34.23},"4":{"rev":3013.5,"inv":4714.33,"coa":5395,"qty":1285232,"prework":1127492,"ord":48486,"itm":92880,"cartons":123550,"units":1040116,"dbkk":9593,"cbkk":2499299.47,"dupc":3685,"cupc":1874633.14,"wd":20,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":2753.5,"ot_thb":null,"wh":"All","rev_hq":2668.6,"rev_mdc":330.2,"rev_tks":14.7,"inv_hq":4111.04,"inv_mdc":550.65,"inv_tks":52.64},"5":{"rev":3586.8,"inv":4219.31,"coa":5998,"qty":1089502,"prework":1217261,"ord":63068,"itm":118145,"cartons":181303,"units":1309715,"dbkk":11193,"cbkk":3087837.49,"dupc":4355,"cupc":2419022.14,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":4312.5,"ot_thb":null,"wh":"All","rev_hq":3230.0,"rev_mdc":340.0,"rev_tks":16.8,"inv_hq":3696.71,"inv_mdc":473.66,"inv_tks":48.94},"6":{"rev":3637.52,"inv":3740.1,"coa":6129,"qty":1194890,"prework":1203173,"ord":71549,"itm":130801,"cartons":183291,"units":1386694,"dbkk":11062,"cbkk":3281577.71,"dupc":4585,"cupc":2335747.14,"wd":20,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":4355.5,"ot_thb":null,"wh":"All","rev_hq":3259.56,"rev_mdc":364.58,"rev_tks":13.38,"inv_hq":3252.23,"inv_mdc":438.41,"inv_tks":49.46},"7":{"rev":3554.4,"inv":4329.84,"coa":6937,"qty":1085635,"prework":1355177,"ord":64927,"itm":121715,"cartons":161111,"units":1184280,"dbkk":11344,"cbkk":3227333.64,"dupc":5514,"cupc":1473982.0,"wd":23,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":3646.5,"ot_thb":null,"wh":"All","rev_hq":3138.0,"rev_mdc":402.6,"rev_tks":13.8,"inv_hq":3750.66,"inv_mdc":520.64,"inv_tks":58.54},"8":{"rev":3337.6,"inv":3833.02,"coa":6531,"qty":1285513,"prework":1232923,"ord":61339,"itm":112560,"cartons":164559,"units":1324601,"dbkk":11395,"cbkk":3348574.6,"dupc":5100,"cupc":3203242.7,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3016.0,"rev_mdc":309.0,"rev_tks":12.6,"inv_hq":3215.45,"inv_mdc":558.67,"inv_tks":58.9},"9":{"rev":3932.0,"inv":3692.09,"coa":6230,"qty":1378941,"prework":1124160,"ord":65554,"itm":126184,"cartons":173636,"units":1457554,"dbkk":11483,"cbkk":3400261.94,"dupc":5449,"cupc":2638119.84,"wd":23,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3555.0,"rev_mdc":355.0,"rev_tks":22.0,"inv_hq":3012.42,"inv_mdc":624.83,"inv_tks":54.84},"10":{"rev":4426.0,"inv":3966.7,"coa":6136,"qty":1144593,"prework":1037763,"ord":53166,"itm":110605,"cartons":130460,"units":1099429,"dbkk":11529,"cbkk":3155885.32,"dupc":3796,"cupc":2176772.47,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3945.0,"rev_mdc":469.0,"rev_tks":12.0,"inv_hq":3094.4,"inv_mdc":820.8,"inv_tks":51.5},"11":{"rev":3721.0,"inv":4619.73,"coa":6117,"qty":1522972,"prework":1113656,"ord":52174,"itm":106187,"cartons":154246,"units":1359401,"dbkk":11292,"cbkk":3276478.59,"dupc":6949,"cupc":2450387.97,"wd":23,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3297.0,"rev_mdc":408.0,"rev_tks":16.0,"inv_hq":3908.58,"inv_mdc":659.64,"inv_tks":51.51},"12":{"rev":3303.868,"inv":3457.23,"coa":4975,"qty":768365,"prework":1126915,"ord":56899,"itm":104105,"cartons":163563,"units":1333083,"dbkk":9731,"cbkk":3039253.52,"dupc":6216,"cupc":2240681.8,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3016.098,"rev_mdc":276.32,"rev_tks":11.45,"inv_hq":2862.36,"inv_mdc":562.4,"inv_tks":32.47}},"2025":{"1":{"rev":3828.4,"inv":4241.6,"coa":6051,"qty":1798812,"prework":1171803,"ord":53573,"itm":110276,"cartons":142715,"units":1287451,"dbkk":10924,"cbkk":3137276.41,"dupc":5961,"cupc":1987607.85,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3458.0,"rev_mdc":355.8,"rev_tks":14.6,"inv_hq":3504.86,"inv_mdc":627.51,"inv_tks":109.23},"2":{"rev":3642.0,"inv":3801.04,"coa":5670,"qty":1341435,"prework":1248412,"ord":52889,"itm":105291,"cartons":150621,"units":1344911,"dbkk":10561,"cbkk":2989974.37,"dupc":8344,"cupc":2383896.3,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3367.0,"rev_mdc":261.0,"rev_tks":14.0,"inv_hq":3083.81,"inv_mdc":586.77,"inv_tks":130.46},"3":{"rev":3862.0,"inv":4110.29,"coa":5914,"qty":1112236,"prework":1319087,"ord":79120,"itm":135258,"cartons":195978,"units":1578927,"dbkk":11404,"cbkk":3162780.14,"dupc":6867,"cupc":2432563.13,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3468.0,"rev_mdc":381.0,"rev_tks":13.0,"inv_hq":3341.03,"inv_mdc":627.57,"inv_tks":141.69},"4":{"rev":3849.0,"inv":4711.08,"coa":5228,"qty":1393774,"prework":1199688,"ord":59644,"itm":109228,"cartons":132186,"units":1218566,"dbkk":9801,"cbkk":2785323.53,"dupc":6578,"cupc":2158116.94,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3499.0,"rev_mdc":339.0,"rev_tks":11.0,"inv_hq":3786.98,"inv_mdc":762.48,"inv_tks":161.62},"5":{"rev":3771.6,"inv":4848.24,"coa":5374,"qty":1420026,"prework":1319589,"ord":68139,"itm":134073,"cartons":164033,"units":1424849,"dbkk":10766,"cbkk":3143576.67,"dupc":7256,"cupc":2291556.1,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3351.0,"rev_mdc":410.0,"rev_tks":10.6,"inv_hq":3976.05,"inv_mdc":678.73,"inv_tks":193.46},"6":{"rev":4488.3,"inv":3632.52,"coa":5649,"qty":1308793,"prework":1448186,"ord":74550,"itm":142211,"cartons":189774,"units":1603147,"dbkk":10567,"cbkk":3056095.58,"dupc":9132,"cupc":2354909.27,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3896.0,"rev_mdc":579.0,"rev_tks":13.3,"inv_hq":2751.36,"inv_mdc":691.0,"inv_tks":190.16},"7":{"rev":4182.7,"inv":4712.6,"coa":5863,"qty":1621948,"prework":1169067,"ord":62694,"itm":116845,"cartons":137663,"units":1324093,"dbkk":12578,"cbkk":2869300.74,"dupc":9409,"cupc":2015653.15,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3545.0,"rev_mdc":625.0,"rev_tks":12.7,"inv_hq":3628.64,"inv_mdc":862.34,"inv_tks":221.62},"8":{"rev":3650.0,"inv":3934.73,"coa":6090,"qty":1151636,"prework":1076874,"ord":65476,"itm":118048,"cartons":134146,"units":1406736,"dbkk":11477,"cbkk":2910152.36,"dupc":7746,"cupc":1774413.74,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3130.8,"rev_mdc":475.4,"rev_tks":43.8,"inv_hq":2961.61,"inv_mdc":755.24,"inv_tks":217.88},"9":{"rev":4233.1,"inv":4451.0,"coa":5384,"qty":1507618,"prework":1129813,"ord":70478,"itm":133621,"cartons":152019,"units":1617367,"dbkk":10837,"cbkk":2899181.85,"dupc":8490,"cupc":2022908.97,"wd":23,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3641.0,"rev_mdc":535.8,"rev_tks":56.3,"inv_hq":3430.0,"inv_mdc":809.0,"inv_tks":212.0},"10":{"rev":4408.5,"inv":4350.86,"coa":5511,"qty":1225045,"prework":1187160,"ord":68171,"itm":133605,"cartons":129033,"units":1213743,"dbkk":10403,"cbkk":2758037.23,"dupc":8311,"cupc":2098341.98,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3904.0,"rev_mdc":474.2,"rev_tks":30.3,"inv_hq":3370.18,"inv_mdc":813.08,"inv_tks":167.6},"11":{"rev":3981.0,"inv":4287.87,"coa":5123,"qty":1279528,"prework":1137876,"ord":71890,"itm":133371,"cartons":137199,"units":1529922,"dbkk":10212,"cbkk":2811716.93,"dupc":7979,"cupc":1720007.19,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3471.0,"rev_mdc":456.0,"rev_tks":54.0,"inv_hq":3288.17,"inv_mdc":844.23,"inv_tks":155.47},"12":{"rev":4117.0,"inv":4307.27,"coa":9186,"qty":1395614,"prework":1212940,"ord":71319,"itm":129415,"cartons":147582,"units":1306332,"dbkk":8512,"cbkk":2298112.07,"dupc":8028,"cupc":1916998.7,"wd":21,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3513.0,"rev_mdc":547.0,"rev_tks":57.0,"inv_hq":3465.55,"inv_mdc":704.15,"inv_tks":137.57}},"2026":{"1":{"rev":4414.6,"inv":4870.62,"coa":5269,"qty":1260989,"prework":1034346,"ord":76303,"itm":136529,"cartons":135169,"units":1184586,"dbkk":10068,"cbkk":2711299.96,"dupc":8385,"cupc":1293467.0,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3757.0,"rev_mdc":605.0,"rev_tks":52.6,"inv_hq":3650.49,"inv_mdc":854.0,"inv_tks":366.13},"2":{"rev":3632.69,"inv":4236.0,"coa":4249,"qty":1097141,"prework":876726,"ord":66628,"itm":109244,"cartons":109936,"units":1142726,"dbkk":7685,"cbkk":2595017.0,"dupc":6443,"cupc":1572890.0,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":2943.49,"rev_mdc":626.0,"rev_tks":63.2,"inv_hq":3219.0,"inv_mdc":639.0,"inv_tks":378.0},"3":{"rev":4031.0,"inv":4419.0,"coa":9346,"qty":1134706,"prework":829636,"ord":98910,"itm":144104,"cartons":183025,"units":1402450,"dbkk":8275,"cbkk":2233458.0,"dupc":6176,"cupc":1517918.0,"wd":22,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3378.0,"rev_mdc":579.0,"rev_tks":74.0,"inv_hq":3319.0,"inv_mdc":718.0,"inv_tks":382.0},"4":{"rev":4568.9,"inv":5028.48,"coa":8581,"qty":878878,"prework":668430,"ord":74633,"itm":112031,"cartons":135496,"units":978548,"dbkk":8018,"cbkk":2368336.15,"dupc":5838,"cupc":1781040.18,"wd":20,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All","rev_hq":3993.0,"rev_mdc":562.0,"rev_tks":13.9,"inv_hq":3667.8,"inv_mdc":958.0,"inv_tks":402.68},"5":{"rev":null,"inv":null,"coa":null,"qty":null,"prework":null,"ord":null,"itm":null,"cartons":null,"units":null,"dbkk":null,"cbkk":null,"dupc":null,"cupc":null,"wd":null,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All"},"6":{"rev":null,"inv":null,"coa":null,"qty":null,"prework":null,"ord":null,"itm":null,"cartons":null,"units":null,"dbkk":null,"cbkk":null,"dupc":null,"cupc":null,"wd":null,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All"},"7":{"rev":null,"inv":null,"coa":null,"qty":null,"prework":null,"ord":null,"itm":null,"cartons":null,"units":null,"dbkk":null,"cbkk":null,"dupc":null,"cupc":null,"wd":null,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All"},"8":{"rev":null,"inv":null,"coa":null,"qty":null,"prework":null,"ord":null,"itm":null,"cartons":null,"units":null,"dbkk":null,"cbkk":null,"dupc":null,"cupc":null,"wd":null,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All"},"9":{"rev":null,"inv":null,"coa":null,"qty":null,"prework":null,"ord":null,"itm":null,"cartons":null,"units":null,"dbkk":null,"cbkk":null,"dupc":null,"cupc":null,"wd":null,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All"},"10":{"rev":null,"inv":null,"coa":null,"qty":null,"prework":null,"ord":null,"itm":null,"cartons":null,"units":null,"dbkk":null,"cbkk":null,"dupc":null,"cupc":null,"wd":null,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All"},"11":{"rev":null,"inv":null,"coa":null,"qty":null,"prework":null,"ord":null,"itm":null,"cartons":null,"units":null,"dbkk":null,"cbkk":null,"dupc":null,"cupc":null,"wd":null,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All"},"12":{"rev":null,"inv":null,"coa":null,"qty":null,"prework":null,"ord":null,"itm":null,"cartons":null,"units":null,"dbkk":null,"cbkk":null,"dupc":null,"cupc":null,"wd":null,"stor":null,"pp":null,"adjjob":null,"recv":null,"ot_hr":null,"ot_thb":null,"wh":"All"}}};
+
+const CAP_SEED={2026:{
+  1:{hqPU:3900,hqPC:4432,hqTU:9200,hqTC:9422,hqF1:220,hqF2r:8932,hqF2a:3584,hqF3:221,hqF4:365,mdcPU:5372,mdcPC:6700,mdcSKU:1123,tksPU:1389,tksPC:1512,tksSKU:318,bpPU:145,bpPC:800,bpSKU:41},
+  2:{hqPU:4111,hqPC:4432,hqTU:9420,hqTC:9422,hqF1:163,hqF2r:9255,hqF2a:3584,hqF3:221,hqF4:310,mdcPU:4776,mdcPC:6700,mdcSKU:1099,tksPU:1443,tksPC:1512,tksSKU:340,bpPU:345,bpPC:800,bpSKU:102},
+  3:{hqPU:4127,hqPC:4432,hqTU:9414,hqTC:9422,hqF1:172,hqF2r:9287,hqF2a:3532,hqF3:221,hqF4:337,mdcPU:4384,mdcPC:6700,mdcSKU:1098,tksPU:1479,tksPC:1728,tksSKU:356,bpPU:666,bpPC:800,bpSKU:109},
+  4:{hqPU:null,hqPC:4432,hqTU:null,hqTC:9422,mdcPU:null,mdcPC:6700,mdcSKU:1136,tksPU:null,tksPC:1728,tksSKU:425,bpPU:null,bpPC:800,bpSKU:85},
+}};
+
+// ─── STATE ────────────────────────────────────────────────────
+let DB=JSON.parse(localStorage.getItem('sx6_db')||'null')||JSON.parse(JSON.stringify(DB_SEED));
+let CAP=JSON.parse(localStorage.getItem('sx6_cap')||'null')||JSON.parse(JSON.stringify(CAP_SEED));
+let CFG=JSON.parse(localStorage.getItem('sx6_cfg')||'{}');
+
+// Convert string keys to number
+function normalizeDB(d){const r={};Object.keys(d).forEach(yr=>{r[+yr]={};Object.keys(d[yr]).forEach(mo=>{r[+yr][+mo]=d[yr][mo];});});return r;}
+DB=normalizeDB(DB);CAP=normalizeDB(CAP);
+
+// ─── CURRENT DISPLAY ─────────────────────────────────────────
+function getLatest(){
+  for(const yr of [CY,CY-1,CY-2,CY-3,CY-4,CY-5,CY-6,CY-7,CY-8,CY-9]){
+    const yrd=DB[yr]||{};
+    const mos=Object.keys(yrd).map(Number).sort((a,b)=>b-a).filter(m=>(yrd[m]||{}).rev);
+    if(mos.length)return{yr,mo:mos[0]};
+  }
+  return{yr:CY,mo:CM};
+}
+let {yr:dispYr,mo:dispMo}=getLatest();
+let viewMode='month';
+
+// ─── INIT HEADER ─────────────────────────────────────────────
+document.getElementById('hdr-mo').textContent=MOF[dispMo]+' '+dispYr;
+
+// ─── DATE PICKER ─────────────────────────────────────────────
+function initDP(){
+  const dy=document.getElementById('dp-year');
+  const dm=document.getElementById('dp-month');
+  if(dy){
+    dy.innerHTML=[2017,2018,2019,2020,2021,2022,2023,2024,2025,2026,2027].map(y=>`<option value="${y}"${y===dispYr?' selected':''}>${y}</option>`).join('');
+  }
+  if(dm) dm.value=String(dispMo);
+}
+function onDpChange(){
+  dispYr=+document.getElementById('dp-year').value;
+  dispMo=+document.getElementById('dp-month').value;
+  document.getElementById('hdr-mo').textContent=MOF[dispMo]+' '+dispYr;
+  rDash();
+}
+function stepMonth(d){
+  let m=dispMo+d,y=dispYr;
+  if(m<1){m=12;y--;}if(m>12){m=1;y++;}
+  dispYr=y;dispMo=m;
+  document.getElementById('dp-year').value=String(y);
+  document.getElementById('dp-month').value=String(m);
+  document.getElementById('hdr-mo').textContent=MOF[m]+' '+y;
+  rDash();
+}
+function jumpToLatest(){const l=getLatest();dispYr=l.yr;dispMo=l.mo;initDP();document.getElementById('hdr-mo').textContent=MOF[l.mo]+' '+l.yr;rDash();}
+function setViewMonth(){viewMode='month';document.getElementById('view-month').style.display='block';document.getElementById('view-all').style.display='none';document.getElementById('vt-month').classList.add('active');document.getElementById('vt-all').classList.remove('active');rDash();}
+function setViewAll(){viewMode='all';document.getElementById('view-month').style.display='none';document.getElementById('view-all').style.display='block';document.getElementById('vt-all').classList.add('active');document.getElementById('vt-month').classList.remove('active');rCumAll();}
+
+// ─── CAPACITY HELPERS ─────────────────────────────────────────
+function getCD(yr,mo){return((CAP[yr]||{})[mo])||{};}
+function missLogFields(yr,mo){
+  const d=(DB[yr]||{})[mo]||{};
+  return[['rev','Revenue'],['inv','Inventory'],['ord','Orders'],['cbkk','Cost BKK'],['cupc','Cost UPC'],['stor','Storage'],['wd','Working Days']].filter(c=>d[c[0]]===null||d[c[0]]===undefined).map(c=>c[1]);
+}
+function missCapFields(yr,mo){
+  const d=getCD(yr,mo);
+  return[['hqPU','HQ Pallet'],['hqTU','HQ Tote'],['mdcPU','MDC'],['tksPU','TKS'],['bpPU','บางปู']].filter(c=>d[c[0]]===null||d[c[0]]===undefined).map(c=>c[1]);
+}
+
+// ─── SVG MULTI-LINE CHART ─────────────────────────────────────
+function multiLine(cid,series,H=165){
+  const el=document.getElementById(cid);if(!el)return;
+  const W=Math.max(el.getBoundingClientRect().width||600,200);
+  const pad={l:44,r:16,t:22,b:30};
+  const cw=W-pad.l-pad.r,ch=H-pad.t-pad.b;
+  if(!series.length||!series[0].data.length){el.innerHTML='<div style="text-align:center;color:#94A3B8;padding:30px;font-size:13px">ไม่มีข้อมูล</div>';return;}
+  const labels=series[0].data.map(d=>d.lbl);
+  const allV=series.flatMap(s=>s.data.map(d=>d.val||0)).filter(v=>v>0);
+  const maxV=allV.length?Math.max(...allV):1;
+  const n=labels.length;
+  const xP=(i)=>pad.l+(n>1?i/(n-1)*cw:cw/2);
+  const yP=(v)=>pad.t+ch-((v||0)/maxV*ch);
+  let svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" style="width:100%;display:block;overflow:visible">`;
+  [0,0.25,0.5,0.75,1].forEach(t=>{
+    const y=pad.t+ch-t*ch;
+    svg+=`<line x1="${pad.l}" y1="${y}" x2="${W-pad.r}" y2="${y}" stroke="#E2E8F0" stroke-width="1"/>`;
+    svg+=`<text x="${pad.l-5}" y="${y+4}" text-anchor="end" font-size="10" fill="#94A3B8" font-family="Sarabun">${+(maxV*t).toFixed(1)}</text>`;
+  });
+  labels.forEach((l,i)=>{ svg+=`<text x="${xP(i).toFixed(1)}" y="${H-4}" text-anchor="middle" font-size="10" fill="#94A3B8" font-family="Sarabun">${l}</text>`; });
+  series.forEach(s=>{
+    const pts=s.data.map((d,i)=>({x:xP(i),y:yP(d.val),v:d.val||0,lbl:d.lbl,cur:d.cur}));
+    if(pts.length<1)return;
+    const aD=`M${pts[0].x},${pad.t+ch} ${pts.map(p=>`L${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')} L${pts[pts.length-1].x},${pad.t+ch} Z`;
+    svg+=`<path d="${aD}" fill="${s.fill}"/>`;
+    const lD=pts.map((p,i)=>`${i===0?'M':'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+    svg+=`<path d="${lD}" fill="none" stroke="${s.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+    pts.forEach(p=>{
+      svg+=`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${p.cur?6:4}" fill="${s.color}" stroke="white" stroke-width="2"><title>${p.lbl}: ${p.v.toFixed(2)} MB</title></circle>`;
+      if(p.v>0) svg+=`<text x="${p.x.toFixed(1)}" y="${(p.y-10).toFixed(1)}" text-anchor="middle" font-size="9" fill="${s.color}" font-family="Prompt" font-weight="600">${p.v.toFixed(1)}</text>`;
+      if(p.cur) svg+=`<line x1="${p.x.toFixed(1)}" y1="${pad.t}" x2="${p.x.toFixed(1)}" y2="${pad.t+ch}" stroke="${s.color}" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.4"/>`;
+    });
+  });
+  svg+='</svg>';
+  el.innerHTML=svg;
+}
+
+// ─── DONUT CHART ─────────────────────────────────────────────
+function donut(cid,segs,cLabel,cSub){
+  const el=document.getElementById(cid);if(!el)return;
+  const total=segs.reduce((a,s)=>a+(s.val||0),0);
+  if(!total){el.innerHTML='<div style="text-align:center;color:#94A3B8;padding:20px;font-size:12px">ไม่มีข้อมูล</div>';return;}
+  const R=54,r=33,cx=70,cy=70;
+  let angle=-Math.PI/2,arcsSvg='';
+  const arcData=segs.map(s=>{
+    const pct=(s.val||0)/total;const sw=pct*2*Math.PI;
+    if(sw<0.005)return{...s,pct};
+    const x1=cx+R*Math.cos(angle),y1=cy+R*Math.sin(angle);
+    angle+=sw;
+    const x2=cx+R*Math.cos(angle),y2=cy+R*Math.sin(angle);
+    arcsSvg+=`<path d="M${cx},${cy} L${x1.toFixed(2)},${y1.toFixed(2)} A${R},${R} 0 ${sw>Math.PI?1:0},1 ${x2.toFixed(2)},${y2.toFixed(2)} Z" fill="${s.color}"><title>${s.lbl}: ${(pct*100).toFixed(1)}%</title></path>`;
+    return{...s,pct};
+  });
+  const cl=cLabel!==undefined?cLabel:N(total/1e6,1);
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="140" height="140" viewBox="0 0 140 140" style="flex-shrink:0">
+    <circle cx="${cx}" cy="${cy}" r="${R+5}" fill="#F1F5FD"/>
+    ${arcsSvg}
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="white"/>
+    <text x="${cx}" y="${cy-2}" text-anchor="middle" font-size="12" fill="#0F172A" font-family="Prompt" font-weight="700">${cl}</text>
+    <text x="${cx}" y="${cy+13}" text-anchor="middle" font-size="9" fill="#94A3B8" font-family="Sarabun">${cSub||'MB'}</text>
+  </svg>`;
+  const legend=arcData.filter(s=>s.val>0).map(s=>`<div class="dl-row"><div class="dl-dot" style="background:${s.color}"></div><div style="font-size:12px;color:var(--txt2);flex:1">${s.lbl}</div><div style="text-align:right"><div style="font-size:12px;font-weight:600;font-family:'Prompt',sans-serif">${N(s.val/1e6,2)}</div><div style="font-size:10px;color:var(--txt4)">${(s.pct*100).toFixed(1)}%</div></div></div>`).join('');
+  el.innerHTML=`<div class="donut-wrap">${svg}<div class="donut-legend">${legend}</div></div>`;
+}
+
+// ─── BAR ROW ─────────────────────────────────────────────────
+function barRow(lbl,val,max,cls='bf-blue',unit=''){
+  const p=max>0?Math.min(100,(val||0)/max*100):0;
+  return `<div class="br"><div class="bl">${lbl}</div><div class="bt"><div class="bf ${cls}" style="width:${p.toFixed(1)}%"></div></div><div class="bv">${N(val)}${unit}</div></div>`;
+}
+
+// ─── PROGRESS ROW ─────────────────────────────────────────────
+function progRow(lbl,use,cap){
+  const p=cap>0?(use||0)/cap:0;
+  return `<div class="prog-row">
+    <div class="prog-lbl"><span class="prog-name">${lbl}</span><span class="prog-val" style="color:${pCol(p)}">${use!=null?N(use,0):'–'} / ${N(cap,0)} — ${pLbl(p)}</span></div>
+    <div class="prog-track"><div class="prog-fill ${pCls(p)}" style="width:${Math.min(100,(p||0)*100).toFixed(1)}%"></div></div>
+  </div>`;
+}
+
+// ─── MISSING PANEL ────────────────────────────────────────────
+function rMissPanel(){
+  const msL=missLogFields(dispYr,dispMo);
+  const msC=missCapFields(dispYr,dispMo);
+  const cd=getCD(dispYr,dispMo);
+  const capWarn=[
+    {l:'HQ Pallet',p:cd.hqPC?(cd.hqPU||0)/cd.hqPC:0},
+    {l:'HQ Tote',p:cd.hqTC?(cd.hqTU||0)/cd.hqTC:0},
+    {l:'MDC',p:cd.mdcPC?(cd.mdcPU||0)/cd.mdcPC:0},
+    {l:'TKS',p:cd.tksPC?(cd.tksPU||0)/cd.tksPC:0},
+    {l:'บางปู',p:cd.bpPC?(cd.bpPU||0)/cd.bpPC:0},
+  ].filter(c=>c.p>=0.80);
+  const el=document.getElementById('dash-missing-panel');if(!el)return;
+  if(!msL.length&&!msC.length&&!capWarn.length){
+    el.innerHTML=`<div class="miss-ok"><span style="font-size:20px">✅</span><div><strong style="color:#065F46">${MOF[dispMo]} ${dispYr}</strong> — ข้อมูลครบถ้วนทุกส่วน</div></div>`;
+    return;
+  }
+  let rows='';
+  if(msL.length) rows+=`<div class="miss-row"><div style="font-size:18px;flex-shrink:0">📋</div><div style="flex:1"><div style="font-size:13px;font-weight:600;color:#1E4D8C;margin-bottom:4px">Logistics ยังไม่ครบ ${msL.length} รายการ</div><div style="display:flex;flex-wrap:wrap;gap:4px">${msL.map(m=>`<span style="background:#DBEAFE;color:#1D4ED8;padding:2px 9px;border-radius:5px;font-size:11px;font-weight:600">${m}</span>`).join('')}</div></div><button class="a-btn" onclick="goFill(${dispYr},${dispMo})">➜ กรอกข้อมูล</button></div>`;
+  if(msC.length) rows+=`<div class="miss-row"><div style="font-size:18px;flex-shrink:0">🏭</div><div style="flex:1"><div style="font-size:13px;font-weight:600;color:#5B21B6;margin-bottom:4px">Capacity ยังไม่ได้กรอก ${msC.length} คลัง</div><div style="display:flex;flex-wrap:wrap;gap:4px">${msC.map(m=>`<span style="background:#EDE9FE;color:#6D28D9;padding:2px 9px;border-radius:5px;font-size:11px;font-weight:600">${m}</span>`).join('')}</div></div><button class="a-btn" style="background:#7C3AED" onclick="sw('capacity',document.querySelectorAll('.nb')[1])">➜ กรอก Capacity</button></div>`;
+  capWarn.forEach(c=>{const col=c.p>=0.95?'#DC2626':'#D97706';rows+=`<div class="miss-row"><div style="font-size:18px">${c.p>=0.95?'🚨':'⚠️'}</div><div style="flex:1"><div style="font-size:13px;font-weight:600;color:${col}">${c.l} ใช้ไป <span style="font-family:'Prompt',sans-serif;font-size:15px">${(c.p*100).toFixed(1)}%</span> [${c.p>=0.95?'วิกฤต':'เฝ้าระวัง'}]</div></div><button class="a-btn" style="background:${col}" onclick="sw('capacity',document.querySelectorAll('.nb')[1])">➜ ดู Capacity</button></div>`;});
+  el.innerHTML=`<div class="miss-panel"><div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid var(--g200)"><span style="font-size:17px">📌</span><span style="font-family:'Prompt',sans-serif;font-size:14px;font-weight:700;color:var(--b800)">${MOF[dispMo]} ${dispYr} — พบข้อมูลที่ยังไม่ครบ</span><span style="background:#FEE2E2;color:#DC2626;border-radius:8px;padding:2px 10px;font-size:12px;font-weight:700;margin-left:auto">${msL.length+msC.length+capWarn.length} รายการ</span></div>${rows}</div>`;
+}
+
+// ─── KPI ──────────────────────────────────────────────────────
+function rKPI(){
+  const d=(DB[dispYr]||{})[dispMo]||{};
+  const p=(DB[dispYr]||{})[dispMo-1]||(DB[dispYr-1]||{})[12]||{};
+  const tc=((d.cbkk||0)+(d.cupc||0))/1e6;
+  const rc=d.rev&&p.rev?((d.rev-p.rev)/p.rev*100):null;
+  const chg=rc!==null?`<span class="${rc>=0?'up':'dn'}">${rc>=0?'▲':'▼'} ${Math.abs(rc).toFixed(1)}%</span>`:'';
+  document.getElementById('kpi-main').innerHTML=[
+    {lbl:'Revenue',val:N(d.rev,2),unit:'MB',sub:chg+(chg?' vs เดือนก่อน':'ไม่มีข้อมูล'),ico:'💰',bg:'linear-gradient(135deg,#EFF6FF,#DBEAFE)',ac:'#1E4D8C'},
+    {lbl:'ค่าขนส่งรวม',val:N(tc,2),unit:'MB',sub:'BKK + UPC',ico:'🚚',bg:'linear-gradient(135deg,#F0FDF4,#DCFCE7)',ac:'#065F46'},
+    {lbl:'Inventory',val:N(d.inv,2),unit:'MB',sub:'มูลค่าคงคลัง',ico:'🏭',bg:'linear-gradient(135deg,#FFFBEB,#FEF3C7)',ac:'#92400E'},
+    {lbl:'Orders รวม',val:N(d.ord,0),unit:'',sub:`Items: ${N(d.itm,0)}`,ico:'📦',bg:'linear-gradient(135deg,#FDF4FF,#FAE8FF)',ac:'#6B21A8'},
+  ].map(k=>`<div class="kpi" style="background:${k.bg}">
+    <div class="kpi-top" style="background:${k.ac}"></div>
+    <div class="kpi-icon">${k.ico}</div>
+    <div class="kpi-lbl">${k.lbl}</div>
+    <div class="kpi-val">${k.val}<span class="kpi-unit">${k.unit}</span></div>
+    <div class="kpi-sub">${k.sub}</div>
+  </div>`).join('');
+  const cd=getCD(dispYr,dispMo);
+  const cps=[cd.hqPC>0?(cd.hqPU||0)/cd.hqPC:0,cd.mdcPC>0?(cd.mdcPU||0)/cd.mdcPC:0,cd.tksPC>0?(cd.tksPU||0)/cd.tksPC:0,cd.bpPC>0?(cd.bpPU||0)/cd.bpPC:0];
+  const r=d.rev||0;
+  // ใช้ข้อมูลจริงแยกคลัง
+  const wrev=[
+    d.rev_hq!=null?d.rev_hq:null,
+    d.rev_mdc!=null?d.rev_mdc:null,
+    d.rev_tks!=null?d.rev_tks:null,
+    d.rev_bp!=null?d.rev_bp:null,
+  ];
+  // สร้าง card เฉพาะคลังที่มีข้อมูล Revenue หรือมี Capacity data
+  const whCards=WH_KEYS.map((k,i)=>{
+    const wr=wrev[i];
+    const pp=cps[i];
+    const hasRev=wr!=null&&wr>0;
+    const hasCap=pp>0;
+    // บางปู — แสดงเฉพาะถ้ามี revenue หรือมี capacity ที่กรอกไว้
+    if(i===3&&!hasRev&&!hasCap) return null;
+    // MDC — แสดงเฉพาะถ้ามีข้อมูล
+    if(!hasRev&&!hasCap) return null;
+    const cs=hasCap?`<span style="color:${pCol(pp)};font-weight:700"> · ${(pp*100).toFixed(0)}%</span>`:'';
+    return`<div class="kpi-wh-card" style="border-top-color:${WH_COLS[i]}">
+      <div class="kwc-name" style="color:${WH_COLS[i]}">${WH_LBL[i]}</div>
+      <div class="kwc-val">${hasRev?N(wr,2):'–'}</div>
+      <div class="kwc-sub">MB Revenue${cs}</div>
+    </div>`;
+  }).filter(Boolean);
+  // ถ้าไม่มีข้อมูลแยกคลัง ใช้ % สัดส่วนแสดงแทน
+  const hasAnyWh=whCards.length>0;
+  document.getElementById('kpi-wh').innerHTML=hasAnyWh?whCards.join(''):
+    WH_KEYS.slice(0,3).map((k,i)=>{
+      const wr=+(r*WH_PCT[i]/100).toFixed(2);const pp=cps[i];
+      const cs=pp>0?`<span style="color:${pCol(pp)};font-weight:700"> · ${(pp*100).toFixed(0)}%</span>`:'';
+      return`<div class="kpi-wh-card" style="border-top-color:${WH_COLS[i]}">
+        <div class="kwc-name" style="color:${WH_COLS[i]}">${WH_LBL[i]}</div>
+        <div class="kwc-val">${N(wr,2)}</div>
+        <div class="kwc-sub">~${WH_PCT[i]}% MB${cs}</div>
+      </div>`;
+    }).join('');
+}
+
+// ─── CAPACITY RENDER ─────────────────────────────────────────
+function rCap(){
+  const d=getCD(dispYr,dispMo);
+  const pHQP=d.hqPC>0?(d.hqPU||0)/d.hqPC:0,pHQT=d.hqTC>0?(d.hqTU||0)/d.hqTC:0;
+  const pMDC=d.mdcPC>0?(d.mdcPU||0)/d.mdcPC:0,pTKS=d.tksPC>0?(d.tksPU||0)/d.tksPC:0,pBP=d.bpPC>0?(d.bpPU||0)/d.bpPC:0;
+  const sb=(id,l,p)=>{const e=document.getElementById(id);if(e){e.textContent=l+' '+pLbl(p);e.style.cssText=pBdg(p);}};
+  sb('hq-pb','Pallet',pHQP);sb('hq-tb','Tote',pHQT);sb('mdc-b','Pallet',pMDC);sb('tks-b','Pallet',pTKS);sb('bp-b','Pallet',pBP);
+  document.getElementById('hq-progs').innerHTML=progRow('Pallet รวม',d.hqPU,d.hqPC||4432)+progRow('Tote Robot',d.hqTU,d.hqTC||9422);
+  document.getElementById('mdc-progs').innerHTML=progRow('Pallet',d.mdcPU,d.mdcPC||6700);
+  document.getElementById('tks-progs').innerHTML=progRow('Pallet',d.tksPU,d.tksPC||1512);
+  document.getElementById('bp-progs').innerHTML=progRow('Pallet',d.bpPU,d.bpPC||800);
+  const floors=[{l:'Floor 1',u:d.hqF1,c:227},{l:'F2 Robot',u:d.hqF2r,c:9422},{l:'F2 ASRS',u:d.hqF2a,c:3584},{l:'Floor 3',u:d.hqF3,c:221},{l:'Floor 4',u:d.hqF4,c:400}];
+  const fe=document.getElementById('hq-floors');
+  if(fe)fe.innerHTML=floors.map(f=>{const p=f.c>0?(f.u||0)/f.c:0;const col=pCol(p);return`<div class="floor-cell"><div class="floor-name">${f.l}</div><div class="floor-val" style="color:${col}">${f.u!=null?N(f.u,0):'–'}</div><div class="floor-cap">/${N(f.c,0)}</div><div class="floor-bar"><div class="floor-bar-f" style="width:${Math.min(100,p*100).toFixed(1)}%;background:${col}"></div></div></div>`;}).join('');
+  // Dashboard bars
+  const de=document.getElementById('dash-cap-bars');
+  if(de)de.innerHTML=[{l:'HQ Pallet',p:pHQP},{l:'HQ Tote',p:pHQT},{l:'MDC',p:pMDC},{l:'TKS',p:pTKS},{l:'บางปู',p:pBP}].map(b=>`<div class="br"><div class="bl">${b.l}</div><div class="bt"><div class="prog-fill ${pCls(b.p)}" style="height:100%;width:${Math.min(100,(b.p||0)*100).toFixed(1)}%;border-radius:4px"></div></div><div class="bv" style="color:${pCol(b.p)};font-family:'Prompt',sans-serif">${pLbl(b.p)}</div></div>`).join('');
+  // Notice
+  const mc=missCapFields(dispYr,dispMo);
+  const ne=document.getElementById('cap-miss-notice');
+  if(ne&&mc.length)ne.innerHTML=`<div style="background:#F5F3FF;border:1px solid #DDD6FE;border-radius:9px;padding:9px 13px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-size:14px">🏭</span><span style="font-size:13px;font-weight:600;color:#5B21B6">${MOF[dispMo]} — ยังไม่ได้กรอก: ${mc.join(', ')}</span><button onclick="sw('capacity',document.querySelectorAll('.nb')[1])" style="padding:5px 12px;background:#7C3AED;border:none;border-radius:7px;color:white;font-size:11px;font-weight:600;cursor:pointer;font-family:'Sarabun',sans-serif;margin-left:auto">กรอก Capacity →</button></div>`;
+  else if(ne)ne.innerHTML='';
+  const capA=[pHQP,pHQT,pMDC,pTKS,pBP].filter(p=>p>=0.80).length;
+  const ce=document.getElementById('cap-cnt');if(ce){if(capA){ce.textContent=capA;ce.style.display='inline';}else ce.style.display='none';}
+}
+
+function loadCap(){
+  const d=getCD(dispYr,dispMo);
+  const s=(id,v)=>{const e=document.getElementById(id);if(e)e.value=(v!=null&&v!==undefined)?v:'';};
+  s('hq-pu',d.hqPU);s('hq-pc',d.hqPC||4432);s('hq-tu',d.hqTU);s('hq-tc',d.hqTC||9422);
+  s('hq-f1',d.hqF1);s('hq-f2r',d.hqF2r);s('hq-f2a',d.hqF2a);s('hq-f3',d.hqF3);s('hq-f4',d.hqF4);
+  s('mdc-pu',d.mdcPU);s('mdc-pc',d.mdcPC||6700);s('mdc-sku',d.mdcSKU);
+  s('tks-pu',d.tksPU);s('tks-pc',d.tksPC||1512);s('tks-sku',d.tksSKU);
+  s('bp-pu',d.bpPU);s('bp-pc',d.bpPC||800);s('bp-sku',d.bpSKU);
+}
+
+function saveCap(){
+  const yr=dispYr,mo=dispMo;
+  const g=(id)=>parseFloat(document.getElementById(id).value)||null;
+  const row={hqPU:g('hq-pu'),hqPC:g('hq-pc')||4432,hqTU:g('hq-tu'),hqTC:g('hq-tc')||9422,hqF1:g('hq-f1'),hqF2r:g('hq-f2r'),hqF2a:g('hq-f2a'),hqF3:g('hq-f3'),hqF4:g('hq-f4'),mdcPU:g('mdc-pu'),mdcPC:g('mdc-pc')||6700,mdcSKU:g('mdc-sku'),tksPU:g('tks-pu'),tksPC:g('tks-pc')||1512,tksSKU:g('tks-sku'),bpPU:g('bp-pu'),bpPC:g('bp-pc')||800,bpSKU:g('bp-sku')};
+  if(!CAP[yr])CAP[yr]={};CAP[yr][mo]=Object.assign(CAP[yr][mo]||{},row);
+  localStorage.setItem('sx6_cap',JSON.stringify(CAP));
+  const ok=document.getElementById('cap-ok');ok.style.display='flex';setTimeout(()=>ok.style.display='none',3000);
+  postToDb({type:'capacity',yr,mo,...row});
+  rCap();rKPI();
+}
+
+// ─── CHARTS ───────────────────────────────────────────────────
+function rLineMulti(){
+  const yrd=DB[dispYr]||{};
+  // เรียงเดือน 1-12 เสมอ
+  const mos=[1,2,3,4,5,6,7,8,9,10,11,12];
+  const hasSome=mos.some(m=>(yrd[m]||{}).rev);
+  if(!hasSome){document.getElementById('ch-line-multi').innerHTML='<div style="text-align:center;color:#94A3B8;padding:30px">ไม่มีข้อมูลปีนี้</div>';return;}
+  document.getElementById('trend-tag').textContent='Y'+dispYr;
+  multiLine('ch-line-multi',[
+    {data:mos.map(m=>({lbl:MO[m],val:(yrd[m]||{}).rev||0,cur:m===dispMo})),color:'#3B82F6',fill:'rgba(59,130,246,0.06)'},
+    {data:mos.map(m=>({lbl:MO[m],val:(((yrd[m]||{}).cbkk||0)+((yrd[m]||{}).cupc||0))/1e6,cur:m===dispMo})),color:'#F59E0B',fill:'rgba(245,158,11,0.05)'},
+    {data:mos.map(m=>({lbl:MO[m],val:((yrd[m]||{}).stor||0)/1e6,cur:m===dispMo})),color:'#10B981',fill:'rgba(16,185,129,0.05)'},
+  ],165);
+}
+
+function rDonutRev(){
+  const d=(DB[dispYr]||{})[dispMo]||{};
+  const tag=document.getElementById('donut-rev-tag');if(tag)tag.textContent=MOF[dispMo]+' '+dispYr;
+  const segs=[
+    {lbl:'HQ',  val:(d.rev_hq !=null?d.rev_hq :0)*1e6, color:'#1A3A6B'},
+    {lbl:'MDC', val:(d.rev_mdc!=null?d.rev_mdc:0)*1e6, color:'#3B82F6'},
+    {lbl:'TKS', val:(d.rev_tks!=null?d.rev_tks:0)*1e6, color:'#F59E0B'},
+  ];
+  // เพิ่มบางปูเฉพาะถ้ามีข้อมูล
+  if(d.rev_bp!=null&&d.rev_bp>0)
+    segs.push({lbl:'บางปู',val:d.rev_bp*1e6,color:'#F97316'});
+  // fallback ถ้าไม่มีข้อมูลแยกคลัง
+  const total=segs.reduce((a,s)=>a+s.val,0);
+  const r=(d.rev||0)*1e6;
+  const finalSegs=total>0?segs:[
+    {lbl:'HQ',val:r*0.87,color:'#1A3A6B'},
+    {lbl:'MDC',val:r*0.09,color:'#3B82F6'},
+    {lbl:'TKS',val:r*0.04,color:'#F59E0B'},
+  ];
+  donut('ch-donut-rev',finalSegs,N(d.rev||0,1),'MB Revenue');
+}
+
+function rDonutStor(){
+  const d=(DB[dispYr]||{})[dispMo]||{};const s=d.stor||0;
+  donut('ch-donut-stor',[
+    {lbl:'HQ',val:s*0.40,color:'#1A3A6B'},{lbl:'MDC',val:s*0.35,color:'#3B82F6'},
+    {lbl:'TKS',val:s*0.15,color:'#F59E0B'},{lbl:'บางปู',val:s*0.10,color:'#F97316'},
+  ],N(s/1e6,2),'MB ฝากเก็บ');
+}
+
+function rStatus(){
+  const el=document.getElementById('st-grid');if(!el)return;
+  const syr=document.getElementById('stat-yr');if(syr)syr.textContent=dispYr;
+  let h='';
+  for(let m=1;m<=12;m++){
+    const ms=missLogFields(dispYr,m),iF=dispYr===CY&&m>CM;
+    const isCur=m===dispMo;
+    const cls=isCur?'cur':iF?'fut':ms.length===0?'ok':'miss';
+    h+=`<div class="sc ${cls}" onclick="jumpToMonth(${dispYr},${m})" title="${iF?'อนาคต':ms.length===0?'ครบ':ms.join(', ')}"><div class="smo">${MO[m]}</div><div class="slb">${iF?'–':ms.length===0?'✓':'ขาด '+ms.length}</div></div>`;
+  }
+  el.innerHTML=h;
+}
+
+function jumpToMonth(yr,mo){
+  dispYr=yr;dispMo=mo;
+  initDP();
+  document.getElementById('hdr-mo').textContent=MOF[mo]+' '+yr;
+  rDash();
+}
+
+// ─── CUMULATIVE ───────────────────────────────────────────────
+function rCumAll(){
+  const allMos=[];
+  for(const yr of [2017,2018,2019,2020,2021,2022,2023,2024,2025,2026]){
+    const yrd=DB[yr]||{};
+    Object.keys(yrd).map(Number).sort().filter(m=>(yrd[m]||{}).rev).forEach(m=>allMos.push({yr,mo:m,d:yrd[m]}));
+  }
+  multiLine('ch-line-all',allMos.length?[{data:allMos.map(x=>({lbl:MO[x.mo]+"'"+String(x.yr).slice(2),val:x.d.rev||0,cur:false})),color:'#1A3A6B',fill:'rgba(26,58,107,0.06)'}]:[],165);
+  const maxRev=Math.max(...allMos.map(x=>x.d.rev||0))||1;
+  const maxC=Math.max(...allMos.map(x=>((x.d.cbkk||0)+(x.d.cupc||0))/1e6))||1;
+  document.getElementById('cum-cards').innerHTML=allMos.map(({yr,mo,d})=>{
+    const cost=((d.cbkk||0)+(d.cupc||0))/1e6;
+    return`<div class="cum-card" onclick="jumpToMonth(${yr},${mo})">
+      <div class="cum-mo">${MO[mo]} ${yr}</div>
+      <div class="cum-rev">${N(d.rev,2)} <span style="font-size:13px;font-weight:400;color:#64748B">MB</span></div>
+      <div class="cum-sub">Orders: ${N(d.ord,0)} · WD: ${d.wd||'–'}</div>
+      <div class="cum-bar-row"><div class="cum-bar-lbl">Rev</div><div class="cum-bar-t"><div class="cum-bar-f" style="width:${((d.rev||0)/maxRev*100).toFixed(1)}%;background:linear-gradient(90deg,#3B82F6,#60A5FA)"></div></div></div>
+      <div class="cum-bar-row"><div class="cum-bar-lbl">ขนส่ง</div><div class="cum-bar-t"><div class="cum-bar-f" style="width:${(cost/maxC*100).toFixed(1)}%;background:linear-gradient(90deg,#F59E0B,#FCD34D)"></div></div></div>
+    </div>`;
+  }).join('');
+}
+
+// ─── ALERTS ───────────────────────────────────────────────────
+function rAlerts(){
+  let cnt=0,hL='',hC='',hW='';
+  for(const yr of [2023,2024,2025,2026]){
+    for(let m=1;m<=12;m++){
+      if(yr===CY&&m>CM)continue;
+      const ms=missLogFields(yr,m);
+      if(ms.length){cnt++;hL+=`<div class="alert-c" style="border-left-color:#3B82F6"><div class="a-ico" style="background:#EFF6FF;font-size:16px">📋</div><div style="flex:1"><div class="a-title">${MOF[m]} ${yr} — ขาด ${ms.length} รายการ</div><div class="a-desc">${ms.map(x=>`<span style="background:#DBEAFE;color:#1D4ED8;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:600;margin-right:3px">${x}</span>`).join('')}</div></div><button class="a-btn" onclick="goFill(${yr},${m})">กรอกข้อมูล</button></div>`;}
+      const mc=missCapFields(yr,m);
+      if(mc.length){cnt++;hC+=`<div class="alert-c" style="border-left-color:#8B5CF6"><div class="a-ico" style="background:#F5F3FF;font-size:16px">🏭</div><div style="flex:1"><div class="a-title">${MOF[m]} ${yr} — Capacity ยังไม่ได้กรอก ${mc.length} คลัง</div><div class="a-desc">${mc.join(' · ')}</div></div><button class="a-btn" style="background:#7C3AED" onclick="jumpToMonth(${yr},${m});sw('capacity',document.querySelectorAll('.nb')[1])">กรอก Capacity</button></div>`;}
+      const cd=getCD(yr,m);
+      [{l:'HQ Pallet',p:cd.hqPC?(cd.hqPU||0)/cd.hqPC:0},{l:'HQ Tote',p:cd.hqTC?(cd.hqTU||0)/cd.hqTC:0},{l:'MDC',p:cd.mdcPC?(cd.mdcPU||0)/cd.mdcPC:0},{l:'TKS',p:cd.tksPC?(cd.tksPU||0)/cd.tksPC:0},{l:'บางปู',p:cd.bpPC?(cd.bpPU||0)/cd.bpPC:0}].filter(c=>c.p>=0.80).forEach(c=>{
+        cnt++;const col=c.p>=0.95?'#DC2626':'#D97706';
+        hW+=`<div class="alert-c" style="border-left-color:${col}"><div class="a-ico" style="background:${c.p>=0.95?'#FEE2E2':'#FEF3C7'};font-size:16px">${c.p>=0.95?'🚨':'⚠️'}</div><div style="flex:1"><div class="a-title">${MOF[m]} ${yr} — ${c.l} ใช้ไป <span style="color:${col};font-family:'Prompt',sans-serif">${(c.p*100).toFixed(1)}%</span> [${c.p>=0.95?'วิกฤต':'เฝ้าระวัง'}]</div></div><button class="a-btn" style="background:${col}" onclick="jumpToMonth(${yr},${m});sw('capacity',document.querySelectorAll('.nb')[1])">ดู Capacity</button></div>`;
+      });
+    }
+  }
+  const secTitle=(icon,title,col,html)=>html?`<div style="display:flex;align-items:center;gap:8px;margin:16px 0 8px;padding-bottom:7px;border-bottom:2px solid ${col}20"><span style="font-size:18px">${icon}</span><span style="font-family:'Prompt',sans-serif;font-size:14px;font-weight:700;color:${col}">${title}</span></div>${html}`:'';
+  let html=secTitle('📋','ข้อมูล Logistics ที่ยังไม่ครบ','#2563B0',hL)+secTitle('🏭','Capacity ที่ยังไม่ได้กรอก','#7C3AED',hC)+secTitle('⚠️','Capacity ใกล้เต็ม','#DC2626',hW);
+  if(!cnt)html=`<div style="text-align:center;padding:60px 20px"><div style="font-size:52px;margin-bottom:14px">✅</div><div style="font-family:'Prompt',sans-serif;font-size:20px;font-weight:700;color:#0F172A;margin-bottom:6px">ไม่มีการแจ้งเตือน</div><div style="font-size:14px;color:#64748B">ข้อมูลครบและ Capacity ปลอดภัย</div></div>`;
+  document.getElementById('alerts-body').innerHTML=html;
+  const ae=document.getElementById('a-cnt');if(ae){if(cnt){ae.textContent=cnt;ae.style.display='inline';}else ae.style.display='none';}
+}
+
+// ─── HISTORY ─────────────────────────────────────────────────
+function rHist(){
+  const yr=+document.getElementById('h-yr').value||CY;const yrd=DB[yr]||{};
+  const pBdg=(pu,pc)=>{if(!pc||!pu)return'<span class="bdg-ft">–</span>';const p=(pu||0)/pc*100;if(p>=95)return`<span class="bdg-danger">${p.toFixed(0)}%</span>`;if(p>=80)return`<span class="bdg-warn">${p.toFixed(0)}%</span>`;if(p>0)return`<span class="bdg-ok">${p.toFixed(0)}%</span>`;return'<span class="bdg-ft">–</span>';};
+  let rows='';
+  for(let m=1;m<=12;m++){
+    const d=yrd[m]||{},ms=missLogFields(yr,m),iF=yr>CY||(yr===CY&&m>CM);
+    const badge=iF?'<span class="bdg-ft">อนาคต</span>':ms.length===0?'<span class="bdg-ok">ครบ</span>':`<span class="bdg-ms">ขาด ${ms.length}</span>`;
+    const cd=getCD(yr,m);
+    rows+=`<tr onclick="jumpToMonth(${yr},${m});sw('dashboard',document.querySelectorAll('.nb')[0])" style="cursor:pointer">
+      <td style="font-weight:600">${MOF[m]}</td>
+      <td style="font-family:'Prompt',sans-serif;font-weight:600">${N(d.rev)}</td><td>${N(d.inv)}</td>
+      <td>${N(d.ord,0)}</td><td>${N(d.itm,0)}</td><td>${N(d.cartons,0)}</td><td>${N(d.units,0)}</td>
+      <td>${N(d.dbkk,0)}</td><td>${N((d.cbkk||0)/1e6)}</td>
+      <td>${N(d.dupc,0)}</td><td>${N((d.cupc||0)/1e6)}</td>
+      <td>${N((d.stor||0)/1e6)}</td><td>${N((d.pp||0)/1e6)}</td>
+      <td>${N(d.adjjob,0)}</td><td>${N(d.recv,0)}</td>
+      <td>${d.wd||'–'}</td><td>${N(d.coa,0)}</td>
+      <td>${pBdg(cd.hqPU,cd.hqPC||4432)}</td><td>${pBdg(cd.mdcPU,cd.mdcPC||6700)}</td>
+      <td>${pBdg(cd.tksPU,cd.tksPC||1512)}</td><td>${pBdg(cd.bpPU,cd.bpPC||800)}</td>
+      <td>${badge}</td>
+    </tr>`;
+  }
+  document.getElementById('h-body').innerHTML=rows;
+}
+
+// ─── ENTRY ────────────────────────────────────────────────────
+function loadFrm(){
+  const yr=+document.getElementById('e-yr').value,mo=+document.getElementById('e-mo').value;
+  const d=(DB[yr]||{})[mo]||{};
+  const s=(id,v)=>{const e=document.getElementById(id);if(e)e.value=(v!=null&&v!==undefined&&v!==0)?v:'';};
+  s('e-rev',d.rev);s('e-inv',d.inv);s('e-wd',d.wd);s('e-coa',d.coa);
+  s('e-ord',d.ord);s('e-itm',d.itm);s('e-cartons',d.cartons);s('e-units',d.units);
+  s('e-qty',d.qty);s('e-prework',d.prework);
+  s('e-dbkk',d.dbkk);s('e-cbkk',d.cbkk);s('e-dupc',d.dupc);s('e-cupc',d.cupc);
+  s('e-stor',d.stor);s('e-pp',d.pp);s('e-adjjob',d.adjjob);s('e-recv',d.recv);
+  s('e-ot-hr',d.ot_hr);s('e-ot-thb',d.ot_thb);
+  if(d.note)document.getElementById('e-note').value=d.note||'';
+}
+
+function saveFrm(){
+  const yr=+document.getElementById('e-yr').value,mo=+document.getElementById('e-mo').value;
+  const g=(id)=>{const v=parseFloat(document.getElementById(id)?.value);return isNaN(v)?null:v;};
+  const gs=(id)=>document.getElementById(id)?.value||null;
+  const row={rev:g('e-rev'),inv:g('e-inv'),wd:g('e-wd'),coa:g('e-coa'),
+    ord:g('e-ord'),itm:g('e-itm'),cartons:g('e-cartons'),units:g('e-units'),
+    qty:g('e-qty'),prework:g('e-prework'),
+    dbkk:g('e-dbkk'),cbkk:g('e-cbkk'),dupc:g('e-dupc'),cupc:g('e-cupc'),
+    stor:g('e-stor'),pp:g('e-pp'),adjjob:g('e-adjjob'),recv:g('e-recv'),
+    ot_hr:g('e-ot-hr'),ot_thb:g('e-ot-thb'),
+    note:gs('e-note'),wh:document.getElementById('e-wh').value};
+  if(!DB[yr])DB[yr]={};
+  DB[yr][mo]=Object.assign(DB[yr][mo]||{},row);
+  localStorage.setItem('sx6_db',JSON.stringify(DB));
+  const ok=document.getElementById('save-ok');ok.style.display='flex';setTimeout(()=>ok.style.display='none',3000);
+  clearHighlight();
+  postToDb({type:'logistics',yr,mo,...row});
+  rDash();rAlerts();
+}
+
+function clrFrm(){
+  ['e-rev','e-inv','e-wd','e-coa','e-ord','e-itm','e-cartons','e-units','e-qty','e-prework',
+   'e-dbkk','e-cbkk','e-dupc','e-cupc','e-stor','e-pp','e-adjjob','e-recv','e-ot-hr','e-ot-thb','e-note']
+  .forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+}
+
+function goFill(yr,mo){
+  document.getElementById('e-yr').value=yr;
+  document.getElementById('e-mo').value=mo;
+  loadFrm();
+  sw('entry',document.querySelectorAll('.nb')[4]);
+  // วงแดงช่องที่ขาด — หลัง DOM render
+  setTimeout(()=>highlightMissing(yr,mo), 80);
+}
+
+// field mapping: key ใน DB → id ของ input
+const FIELD_MAP=[
+  {key:'rev',   id:'e-rev',  lbl:'Revenue'},
+  {key:'inv',   id:'e-inv',  lbl:'Inventory'},
+  {key:'wd',    id:'e-wd',   lbl:'Working Days'},
+  {key:'coa',   id:'e-coa',  lbl:'COA'},
+  {key:'ord',   id:'e-ord',  lbl:'Orders'},
+  {key:'itm',   id:'e-itm',  lbl:'Items'},
+  {key:'cbkk',  id:'e-cbkk', lbl:'Cost BKK'},
+  {key:'cupc',  id:'e-cupc', lbl:'Cost UPC'},
+  {key:'stor',  id:'e-stor', lbl:'Storage'},
+  {key:'pp',    id:'e-pp',   lbl:'Pick-Pack'},
+];
+
+function highlightMissing(yr,mo){
+  const d=(DB[yr]||{})[mo]||{};
+  // ล้าง highlight เก่าก่อน
+  document.querySelectorAll('.fgrp input, .fgrp select').forEach(el=>{
+    el.style.borderColor='';
+    el.style.boxShadow='';
+    el.style.background='';
+  });
+  // วงแดงช่องที่ยังว่าง
+  const missing=[];
+  FIELD_MAP.forEach(({key,id,lbl})=>{
+    const val=d[key];
+    const isEmpty=val===null||val===undefined;
+    const el=document.getElementById(id);
+    if(!el)return;
+    if(isEmpty){
+      el.style.borderColor='#EF4444';
+      el.style.boxShadow='0 0 0 3px rgba(239,68,68,0.15)';
+      el.style.background='#FFF5F5';
+      missing.push(lbl);
+    } else {
+      el.style.borderColor='';
+      el.style.boxShadow='';
+      el.style.background='';
+    }
+  });
+  // แสดง banner บอกว่าช่องไหนขาด
+  const banner=document.getElementById('missing-banner');
+  if(banner){
+    if(missing.length){
+      banner.style.display='flex';
+      banner.innerHTML=`<span style="font-size:16px">🔴</span><div><strong>ช่องที่ต้องกรอก (${missing.length} รายการ):</strong> ${missing.map(m=>`<span style="background:#FEE2E2;color:#DC2626;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:600;margin-right:3px">${m}</span>`).join('')}<div style="font-size:11px;color:#64748B;margin-top:3px">กรอกได้เฉพาะที่ต้องการ ไม่บังคับครบทุกช่อง</div></div>`;
+    } else {
+      banner.style.display='none';
+    }
+  }
+}
+
+function clearHighlight(){
+  document.querySelectorAll('.fgrp input, .fgrp select').forEach(el=>{
+    el.style.borderColor='';
+    el.style.boxShadow='';
+    el.style.background='';
+  });
+  const banner=document.getElementById('missing-banner');
+  if(banner)banner.style.display='none';
+}
+
+// ─── UPLOAD EXCEL ─────────────────────────────────────────────
+function handleDrop(e){e.preventDefault();document.getElementById('upload-area').classList.remove('drag');const f=e.dataTransfer.files[0];if(f)handleFile(f);}
+function handleFile(file){
+  if(!file)return;
+  const statusEl=document.getElementById('upload-status');
+  statusEl.innerHTML='<div style="text-align:center;padding:16px;color:var(--b500)">⏳ กำลังอ่านไฟล์...</div>';
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const shName=wb.SheetNames.includes('Summary Operation')?'Summary Operation':wb.SheetNames[0];
+      const ws=wb.Sheets[shName];
+      const raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+      // Parse rows
+      let imported=0,skipped=0;
+      for(let i=0;i<raw.length;i++){
+        const row=raw[i];
+        if(!row||!row[0])continue;
+        const dateVal=row[0];
+        let yr,mo;
+        if(dateVal instanceof Date){yr=dateVal.getFullYear();mo=dateVal.getMonth()+1;}
+        else if(typeof dateVal==='number'&&dateVal>40000){const d=new Date((dateVal-25569)*86400000);yr=d.getFullYear();mo=d.getMonth()+1;}
+        else if(typeof dateVal==='string'&&dateVal.match(/\d{4}-\d{2}/)){yr=+dateVal.slice(0,4);mo=+dateVal.slice(5,7);}
+        else continue;
+        if(yr<2020||yr>2030||mo<1||mo>12)continue;
+        const safe=(v,t='float')=>{if(v===null||v===undefined||v==='')return null;const n=typeof v==='number'?v:parseFloat(String(v).replace(/,/g,''));if(isNaN(n)||n===0)return null;return t==='int'?Math.round(n):Math.round(n*100)/100;};
+        const d={rev:safe(row[1]),inv:safe(row[2]),coa:safe(row[3],'int'),qty:safe(row[4],'int'),prework:safe(row[5],'int'),ord:safe(row[6],'int'),itm:safe(row[7],'int'),cartons:safe(row[8],'int'),units:safe(row[9],'int'),dbkk:safe(row[10],'int'),cbkk:safe(row[11]),dupc:safe(row[12],'int'),cupc:safe(row[13]),wd:safe(row[16],'int'),stor:safe(row[21]),pp:safe(row[22]),adjjob:safe(row[23]),recv:safe(row[24]),ot_hr:safe(row[27]),ot_thb:safe(row[28]),wh:'All'};
+        if(!d.rev&&!d.ord)continue;
+        if(!DB[yr])DB[yr]={};
+        DB[yr][mo]=Object.assign(DB[yr][mo]||{},d);
+        imported++;
+      }
+      localStorage.setItem('sx6_db',JSON.stringify(DB));
+      statusEl.innerHTML=`<div style="background:#D1FAE5;border:1.5px solid rgba(16,185,129,.3);border-radius:11px;padding:14px 18px;font-size:13px;color:#065F46;display:flex;align-items:center;gap:10px"><span style="font-size:22px">✅</span><div><strong>Import สำเร็จ!</strong> นำเข้า ${imported} เดือน จากชีต: ${shName}${skipped?' · ข้ามแถวที่ไม่ตรงรูปแบบ '+skipped+' แถว':''}</div></div>`;
+      // Preview
+      const yrs=[...new Set(Object.keys(DB).map(Number))].sort();
+      let prev=`<div style="margin-top:14px"><div style="font-family:'Prompt',sans-serif;font-size:14px;font-weight:700;color:var(--b800);margin-bottom:10px">ข้อมูลในระบบหลัง Import</div><div class="tbl-wrap"><div style="overflow-x:auto"><table><thead><tr><th>ปี</th><th>เดือนที่มีข้อมูล</th><th>Revenue รวม (MB)</th></tr></thead><tbody>`;
+      yrs.forEach(yr=>{
+        const yrd=DB[yr]||{};
+        const mos=Object.keys(yrd).map(Number).sort().filter(m=>(yrd[m]||{}).rev);
+        const total=mos.reduce((a,m)=>a+(yrd[m].rev||0),0);
+        prev+=`<tr><td style="font-weight:600">${yr}</td><td>${mos.map(m=>MO[m]).join(', ')}</td><td style="font-family:'Prompt',sans-serif;font-weight:600">${N(total,2)}</td></tr>`;
+      });
+      prev+='</tbody></table></div></div></div>';
+      document.getElementById('upload-preview').innerHTML=prev;
+      rDash();rAlerts();rHist();
+    }catch(err){
+      statusEl.innerHTML=`<div style="background:#FEE2E2;border:1.5px solid rgba(239,68,68,.3);border-radius:11px;padding:14px;font-size:13px;color:#991B1B">❌ อ่านไฟล์ไม่ได้: ${err.message}<br><small>ตรวจสอบว่าไฟล์เป็น Excel (.xlsx) และมีชีต "Summary Operation"</small></div>`;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ─── FIREBASE FIRESTORE STORAGE ───────────────────────────────
+let FIRESTORE=null;
+
+function parseFirebaseConfig(raw){
+  const txt=(raw||'').trim();
+  if(!txt)throw new Error('กรุณาวาง Firebase config ก่อน');
+  try{return JSON.parse(txt);}catch(e){}
+  try{
+    return Function('"use strict";let firebaseConfig;'+txt+';if(typeof firebaseConfig!=="undefined")return firebaseConfig;return ('+txt+');')();
+  }catch(e){throw new Error('Firebase config ไม่ถูกต้อง');}
+}
+
+function initFirebaseDb(){
+  if(FIRESTORE)return FIRESTORE;
+  if(typeof firebase==='undefined')throw new Error('โหลด Firebase SDK ไม่สำเร็จ');
+  const cfg=parseFirebaseConfig(CFG.fbConfig);
+  if(!cfg.projectId)throw new Error('Firebase config ต้องมี projectId');
+  const app=firebase.apps.length?firebase.app():firebase.initializeApp(cfg);
+  FIRESTORE=firebase.firestore(app);
+  return FIRESTORE;
+}
+
+function docId(yr,mo){return String(yr)+'_'+String(mo);}
+function cleanFirestoreDoc(data){
+  const clean={};
+  Object.keys(data||{}).forEach(k=>{
+    if(['type','yr','mo','_updatedAt'].includes(k))return;
+    const v=data[k];
+    clean[k]=(v===null||v===''||v==='null')?null:(!isNaN(+v)&&v!==''?+v:v);
+  });
+  return clean;
+}
+function mergeRemote(target,remote){
+  Object.keys(remote||{}).forEach(yr=>{
+    if(!target[+yr])target[+yr]={};
+    Object.keys(remote[yr]||{}).forEach(mo=>{
+      target[+yr][+mo]=Object.assign(target[+yr][+mo]||{},remote[yr][mo]);
+    });
+  });
+}
+
+async function postToDb(payload){
+  try{
+    const db=initFirebaseDb();
+    const collection=payload.type==='capacity'?'capacity':'logistics';
+    const yr=+payload.yr,mo=+payload.mo;
+    if(!yr||!mo)throw new Error('missing yr/mo');
+    await db.collection(collection).doc(docId(yr,mo)).set({
+      ...payload,
+      yr,mo,
+      _updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true});
+  }catch(err){
+    console.warn('Firestore save failed:',err);
+  }
+}
+
+async function pushAllToDb(onDone){
+  const msgEl=document.getElementById('sync-msg');
+  try{
+    const db=initFirebaseDb();
+    if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--b500)">⏳ กำลังส่งข้อมูลทั้งหมดไป Database...</span>';}
+    const queue=[];
+    Object.keys(DB).forEach(yr=>{
+      Object.keys(DB[+yr]||{}).forEach(mo=>{
+        const d=DB[+yr][+mo];
+        if(!d||(!d.rev&&!d.ord))return;
+        queue.push({type:'logistics',yr:+yr,mo:+mo,...d});
+      });
+    });
+    Object.keys(CAP).forEach(yr=>{
+      Object.keys(CAP[+yr]||{}).forEach(mo=>{
+        const d=CAP[+yr][+mo];
+        if(!d)return;
+        queue.push({type:'capacity',yr:+yr,mo:+mo,...d});
+      });
+    });
+    if(!queue.length){
+      if(msgEl){msgEl.innerHTML='<span style="color:var(--acc)">ไม่มีข้อมูลให้ส่ง</span>';setTimeout(()=>msgEl.style.display='none',3000);}
+      return;
+    }
+    for(let i=0;i<queue.length;i++){
+      const payload=queue[i];
+      const collection=payload.type==='capacity'?'capacity':'logistics';
+      await db.collection(collection).doc(docId(payload.yr,payload.mo)).set({
+        ...payload,
+        _updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      },{merge:true});
+      if(msgEl)msgEl.innerHTML='<span style="color:var(--b500)">⏳ กำลังส่ง... '+(i+1)+'/'+queue.length+'</span>';
+    }
+    localStorage.setItem('sx6_db',JSON.stringify(DB));
+    localStorage.setItem('sx6_cap',JSON.stringify(CAP));
+    if(msgEl){msgEl.innerHTML='<span style="color:var(--grn)">✅ ส่งข้อมูลสำเร็จ '+queue.length+' รายการ!</span>';setTimeout(()=>msgEl.style.display='none',5000);}
+    if(onDone)onDone();
+  }catch(err){
+    if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--red)">❌ ส่งข้อมูลไม่สำเร็จ: '+err.message+'</span>';}
+    else alert(err.message);
+  }
+}
+
+async function syncFromDb(silent){
+  const msgEl=document.getElementById('sync-msg');
+  try{
+    const db=initFirebaseDb();
+    if(msgEl&&!silent){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--b500)">⏳ กำลัง Sync จาก Database...</span>';}
+    const logistics={},capacity={};
+    const [logSnap,capSnap]=await Promise.all([
+      db.collection('logistics').get(),
+      db.collection('capacity').get()
+    ]);
+    logSnap.forEach(doc=>{
+      const data=doc.data();
+      const yr=+data.yr,mo=+data.mo;
+      if(!yr||!mo)return;
+      if(!logistics[yr])logistics[yr]={};
+      logistics[yr][mo]=cleanFirestoreDoc(data);
+    });
+    capSnap.forEach(doc=>{
+      const data=doc.data();
+      const yr=+data.yr,mo=+data.mo;
+      if(!yr||!mo)return;
+      if(!capacity[yr])capacity[yr]={};
+      capacity[yr][mo]=cleanFirestoreDoc(data);
+    });
+    mergeRemote(DB,logistics);mergeRemote(CAP,capacity);
+    localStorage.setItem('sx6_db',JSON.stringify(DB));
+    localStorage.setItem('sx6_cap',JSON.stringify(CAP));
+    if(msgEl&&!silent){msgEl.innerHTML='<span style="color:var(--grn)">✅ Sync สำเร็จ!</span>';setTimeout(()=>msgEl.style.display='none',4000);}
+    rDash();rAlerts();rCap();
+  }catch(err){
+    if(!silent){
+      if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--red)">❌ Sync ไม่สำเร็จ: '+err.message+'</span>';setTimeout(()=>msgEl.style.display='none',6000);}
+      else alert(err.message);
+    }
+  }
+}
+
+// Backward-compatible names for older buttons or saved HTML snippets.
+const postToSheet=postToDb;
+const pushAllToSheet=pushAllToDb;
+const syncFromSheet=syncFromDb;
+
+// ─── YEAR-OVER-YEAR ───────────────────────────────────────────
+function rYoY(el){
+  const YRS=[2017,2018,2019,2020,2021,2022,2023,2024,2025,2026];
+  const YR_COLS=['#94A3B8','#64748B','#475569','#6366F1','#8B5CF6','#3B82F6','#F59E0B','#10B981','#1A3A6B','#EF4444'];
+
+  // ── Summary cards ─────────────────────────────────────────
+  const summaryCards=YRS.map((yr,yi)=>{
+    const yrd=DB[yr]||{};
+    const mos=Object.keys(yrd).map(Number).sort().filter(m=>(yrd[m]||{}).rev);
+    const totRev=mos.reduce((a,m)=>a+(yrd[m].rev||0),0);
+    const totOrd=mos.reduce((a,m)=>a+(yrd[m].ord||0),0);
+    const totCost=mos.reduce((a,m)=>a+((yrd[m].cbkk||0)+(yrd[m].cupc||0)),0)/1e6;
+    const prevYr=DB[yr-1]||{};
+    const prevMos=Object.keys(prevYr).map(Number).filter(m=>(prevYr[m]||{}).rev);
+    const prevRev=prevMos.reduce((a,m)=>a+(prevYr[m].rev||0),0);
+    const chg=prevRev>0?((totRev-prevRev)/prevRev*100):null;
+    return `<div class="kpi" style="background:linear-gradient(135deg,${YR_COLS[yi]}11,${YR_COLS[yi]}06)">
+      <div class="kpi-top" style="background:${YR_COLS[yi]}"></div>
+      <div style="font-size:22px;margin-bottom:8px">📅</div>
+      <div class="kpi-lbl">Y${yr} รวมทั้งปี</div>
+      <div class="kpi-val" style="font-size:26px">${N(totRev,1)}<span class="kpi-unit">MB</span></div>
+      <div class="kpi-sub">Orders: ${N(totOrd,0)} · ขนส่ง: ${N(totCost,1)} MB${chg!==null?` <span class="${chg>=0?'up':'dn'}">${chg>=0?'▲':'▼'}${Math.abs(chg).toFixed(1)}%</span>`:''}
+      </div>
+    </div>`;
+  }).join('');
+
+  // ── กราฟเส้น Revenue เปรียบเทียบ 4 ปี ────────────────────
+  const lineRevId='yoy-line-rev';
+  const lineCostId='yoy-line-cost';
+  const lineOrdId='yoy-line-ord';
+
+  // ── ตาราง YoY รายเดือน ────────────────────────────────────
+  const metrics=[
+    {key:'rev',lbl:'Revenue (MB)',fmt:(v)=>N(v,2)},
+    {key:'ord',lbl:'Orders',fmt:(v)=>N(v,0)},
+    {key:'cbkk',lbl:'Cost BKK (MB)',fmt:(v)=>N((v||0)/1e6,2)},
+    {key:'cupc',lbl:'Cost UPC (MB)',fmt:(v)=>N((v||0)/1e6,2)},
+    {key:'stor',lbl:'Storage (MB)',fmt:(v)=>N((v||0)/1e6,2)},
+    {key:'pp',lbl:'Pick-Pack (MB)',fmt:(v)=>N((v||0)/1e6,2)},
+  ];
+
+  const tableRows=metrics.map(mt=>{
+    let row=`<tr><td style="font-weight:600;white-space:nowrap">${mt.lbl}</td>`;
+    YRS.forEach(yr=>{
+      const yrd=DB[yr]||{};
+      const mos=Object.keys(yrd).map(Number).filter(m=>(yrd[m]||{}).rev);
+      const total=mos.reduce((a,m)=>a+(yrd[m][mt.key]||0),0);
+      const prevYr=DB[yr-1]||{};
+      const prevMos=Object.keys(prevYr).map(Number).filter(m=>(prevYr[m]||{}).rev);
+      const prevTotal=prevMos.reduce((a,m)=>a+(prevYr[m][mt.key]||0),0);
+      const chg=prevTotal>0?((total-prevTotal)/prevTotal*100):null;
+      const chgHtml=chg!==null?` <span style="font-size:10px;font-weight:700;color:${chg>=0?'var(--grn)':'var(--red)'}">${chg>=0?'▲':'▼'}${Math.abs(chg).toFixed(1)}%</span>`:'';
+      row+=`<td style="font-family:'Prompt',sans-serif;font-weight:600;text-align:right">${mt.fmt(total)}${chgHtml}</td>`;
+    });
+    row+='</tr>';
+    return row;
+  }).join('');
+
+  // ── YoY รายเดือน (บัตรแต่ละเดือน) ────────────────────────
+  const monthCards=Array.from({length:12},(_,mi)=>{
+    const mo=mi+1;
+    const bars=YRS.map((yr,yi)=>{
+      const d=(DB[yr]||{})[mo]||{};
+      return{yr,rev:d.rev||0,col:YR_COLS[yi]};
+    });
+    const maxRev=Math.max(...bars.map(b=>b.rev))||1;
+    const barsHtml=bars.map(b=>{
+      const h=Math.max(4,Math.round((b.rev/maxRev)*52));
+      return `<div class="yoy-bar-wrap">
+        <div class="yoy-val" style="color:${b.col}">${b.rev>0?b.rev.toFixed(0):''}</div>
+        <div class="yoy-bar" style="height:${h}px;background:${b.col};opacity:${b.rev>0?1:0.15}"></div>
+        <div class="yoy-bar-lbl">${b.yr}</div>
+      </div>`;
+    }).join('');
+    // คำนวณ %เปลี่ยน YoY ปี 2026 vs 2025
+    const r26=(DB[2026]||{})[mo]?.rev||0;
+    const r25=(DB[2025]||{})[mo]?.rev||0;
+    const chg=r25>0?((r26-r25)/r25*100):null;
+    const chgHtml=chg!==null?`<div class="yoy-chg" style="color:${chg>=0?'var(--grn)':'var(--red)'}">${chg>=0?'▲':'▼'}${Math.abs(chg).toFixed(1)}%</div>`:'';
+    return `<div class="yoy-card">
+      <div class="yoy-mo">${MOF[mo]}</div>
+      <div class="yoy-bars">${barsHtml}</div>
+      ${chgHtml}
+    </div>`;
+  }).join('');
+
+  el.innerHTML=`
+    <!-- KPI Summary 4 ปี -->
+    <div class="kpi-row" style="margin-bottom:20px">${summaryCards}</div>
+
+    <!-- กราฟเส้น Revenue YoY -->
+    <div class="panel" style="margin-bottom:16px">
+      <div class="ph">
+        <div class="pt">📈 Revenue เปรียบเทียบ Year-over-Year (MB)</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          ${YRS.map((yr,i)=>`<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--txt3)"><div style="width:14px;height:3px;background:${YR_COLS[i]};border-radius:2px"></div>Y${yr}</div>`).join('')}
+        </div>
+      </div>
+      <div id="${lineRevId}" style="min-height:170px"></div>
+    </div>
+
+    <!-- บัตรรายเดือน YoY -->
+    <div class="panel" style="margin-bottom:16px">
+      <div class="ph">
+        <div class="pt">📊 Revenue รายเดือน แยกปี (▲▼ = 2026 vs 2025)</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          ${YRS.map((yr,i)=>`<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--txt3)"><div style="width:10px;height:10px;border-radius:3px;background:${YR_COLS[i]}"></div>Y${yr}</div>`).join('')}
+        </div>
+      </div>
+      <div class="yoy-grid">${monthCards}</div>
+    </div>
+
+    <!-- ตารางเปรียบเทียบ -->
+    <div class="panel" style="padding:0;overflow:hidden">
+      <div style="padding:14px 18px 10px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--txt2)">📋 ตารางสรุปรายปี (รวมทั้งปี)</div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr>
+            <th>Metric</th>
+            ${YRS.map((yr,i)=>`<th style="color:${YR_COLS[i]};text-align:right">Y${yr}</th>`).join('')}
+          </tr></thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  // render multi-line charts หลัง DOM ready
+  setTimeout(()=>{
+    const series=YRS.map((yr,i)=>{
+      const yrd=DB[yr]||{};
+      return{
+        data:Array.from({length:12},(_,mi)=>{
+          const m=mi+1;
+          const d=yrd[m]||{};
+          return{lbl:MO[m],val:d.rev||0,cur:false};
+        }),
+        color:YR_COLS[i],fill:YR_COLS[i]+'15'
+      };
+    });
+    multiLine(lineRevId,series,170);
+  },20);
+}
+
+// ─── EXPORT PDF ───────────────────────────────────────────────
+function exportPDF(){
+  // เตรียมหน้าก่อน print
+  const allSecs=document.querySelectorAll('.sec');
+  const origDisplay=[];
+  allSecs.forEach((s,i)=>{ origDisplay[i]=s.style.display; });
+
+  // แสดง dash และ analysis
+  allSecs.forEach(s=>s.style.display='none');
+  document.getElementById('s-dashboard').style.display='block';
+  document.getElementById('s-analysis').style.display='block';
+
+  // แสดง view-month
+  const vm=document.getElementById('view-month');
+  const va=document.getElementById('view-all');
+  if(vm)vm.style.display='block';
+  if(va)va.style.display='none';
+
+  // แสดงทุก an-sec
+  document.querySelectorAll('.an-sec').forEach(s=>s.style.display='block');
+
+  // title
+  const title=document.title;
+  document.title=`SYNNEX Logistics Report — ${MOF[dispMo]} ${dispYr}`;
+
+  // watermark date
+  const wm=document.createElement('div');
+  wm.id='pdf-watermark';
+  wm.style.cssText='position:fixed;bottom:20px;right:20px;font-size:11px;color:#94A3B8;font-family:Sarabun;z-index:9999;print-color-adjust:exact';
+  wm.textContent=`พิมพ์เมื่อ ${new Date().toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'})}`;
+  document.body.appendChild(wm);
+
+  setTimeout(()=>{
+    window.print();
+    // restore หลัง print
+    setTimeout(()=>{
+      allSecs.forEach((s,i)=>{ s.style.display=origDisplay[i]; });
+      document.getElementById('s-dashboard').style.display='block';
+      document.querySelectorAll('.nb')[0].click();
+      document.querySelectorAll('.an-sec').forEach(s=>s.style.display='none');
+      document.querySelector('.an-sec.active')?.style.setProperty('display','block');
+      document.title=title;
+      const wmEl=document.getElementById('pdf-watermark');
+      if(wmEl)wmEl.remove();
+    },500);
+  },300);
+}
+
+// ─── ANALYSIS ─────────────────────────────────────────────────
+function rAn(tab){
+  if(tab==='yoy'){rYoY(document.getElementById('an-yoy'));return;}
+  const yr=2025,yrd=DB[yr]||{};
+  const mos=Object.keys(yrd).map(Number).sort().filter(m=>(yrd[m]||{}).rev);
+  const avg=(f)=>mos.length?mos.reduce((a,m)=>a+(f(yrd[m]||{})||0),0)/mos.length:0;
+  const aRev=avg(d=>d.rev),aC=avg(d=>(d.cbkk||0)+(d.cupc||0)),aS=avg(d=>d.stor||0),aPP=avg(d=>d.pp||0),aO=avg(d=>d.ord||0),aWD=avg(d=>d.wd||22);
+  const el=document.getElementById('an-'+tab);if(!el)return;
+  if(tab==='cost'){
+    const tot=aC+aS+aPP;
+    el.innerHTML=`<div class="ib"><div class="ib-title">💡 สรุปต้นทุน Y2025</div>${[`ค่าขนส่ง: <strong>${N(aC/1e6)} MB/เดือน</strong> = <strong>${(aC/1e6/aRev*100).toFixed(2)}%</strong> ของ Revenue`,`ค่าฝากเก็บ: <strong>${N(aS/1e6)} MB/เดือน</strong>`,`Pick-Pack: <strong>${N(aPP/1e6)} MB/เดือน</strong> = ${N(aPP/Math.max(aO,1),0)} บ./Order`,`รวมต้นทุน: <strong>${N(tot/1e6)} MB/เดือน</strong> = <strong>${(tot/1e6/aRev*100).toFixed(2)}%</strong> ของ Revenue`].map(t=>`<div class="ib-row"><div class="ib-dot"></div><div class="ib-text">${t}</div></div>`).join('')}</div>
+    <div class="g2"><div class="panel"><div class="ph"><div class="pt">สัดส่วนต้นทุน</div></div><div id="an-cost-dn" style="min-height:150px"></div></div>
+    <div class="panel"><div class="ph"><div class="pt">% ต้นทุน/Revenue รายเดือน</div></div>${mos.map(m=>{const pct=(((yrd[m].cbkk||0)+(yrd[m].cupc||0))/1e6)/(yrd[m].rev||1)*100;return barRow(MO[m],+pct.toFixed(2),5,'bf-blue',' %');}).join('')}</div></div>`;
+    setTimeout(()=>donut('an-cost-dn',[{lbl:'ค่าขนส่ง',val:aC,color:'#3B82F6'},{lbl:'ค่าฝากเก็บ',val:aS,color:'#F59E0B'},{lbl:'Pick-Pack',val:aPP,color:'#10B981'}]),10);
+  }
+  if(tab==='transport'){
+    const aB=avg(d=>d.cbkk||0),aU=avg(d=>d.cupc||0),aDB=avg(d=>d.dbkk||0),aDU=avg(d=>d.dupc||0);
+    const cB=aDB>0?aB/aDB:0,cU=aDU>0?aU/aDU:0,mx=Math.max(cB,cU)||1;
+    el.innerHTML=`<div class="met4">${[{l:'Cost/Drop BKK',v:N(cB,0)+' บ.',s:'เฉลี่ย Y2025'},{l:'Cost/Drop UPC',v:N(cU,0)+' บ.',s:'เฉลี่ย Y2025'},{l:'ขนส่ง BKK avg.',v:N(aB/1e6)+' MB',s:'/เดือน'},{l:'ขนส่ง UPC avg.',v:N(aU/1e6)+' MB',s:'/เดือน'}].map(m=>`<div class="met"><div class="met-lbl">${m.l}</div><div class="met-val">${m.v}</div><div class="met-sub">${m.s}</div></div>`).join('')}</div>
+    <div class="g2"><div class="panel"><div class="ph"><div class="pt">Cost/Drop เปรียบเทียบ</div></div>${barRow('BKK',+cB.toFixed(0),mx,'bf-gold')}  ${barRow('UPC',+cU.toFixed(0),mx,'bf-blue')}</div>
+    <div class="panel"><div class="ph"><div class="pt">ค่าขนส่ง BKK รายเดือน</div></div><div id="an-trans-line" style="min-height:130px"></div></div></div>`;
+    setTimeout(()=>multiLine('an-trans-line',[{data:mos.map(m=>({lbl:MO[m],val:(yrd[m].cbkk||0)/1e6,cur:false})),color:'#F59E0B',fill:'rgba(245,158,11,0.06)'}],130),10);
+  }
+  if(tab==='storage'){
+    el.innerHTML=`<div class="met4">${[{l:'Storage avg./เดือน',v:N(aS/1e6)+' MB',s:'Y2025'},{l:'Storage/Order',v:N(aS/Math.max(aO,1),0)+' บ.',s:'ต้นทุนต่อ Order'},{l:'Inventory avg.',v:N(avg(d=>d.inv))+' MB',s:'/เดือน'},{l:'% of Revenue',v:((aS/1e6)/aRev*100).toFixed(2)+'%',s:'ค่าฝาก/Revenue'}].map(m=>`<div class="met"><div class="met-lbl">${m.l}</div><div class="met-val">${m.v}</div><div class="met-sub">${m.s}</div></div>`).join('')}</div>
+    <div class="panel"><div class="ph"><div class="pt">Storage เทรนด์ Y2025</div></div><div id="an-stor-line" style="min-height:140px"></div></div>`;
+    setTimeout(()=>multiLine('an-stor-line',[{data:mos.map(m=>({lbl:MO[m],val:(yrd[m].stor||0)/1e6,cur:false})),color:'#F59E0B',fill:'rgba(245,158,11,0.06)'}],140),10);
+  }
+  if(tab==='pickpack'){
+    const ppO=aO>0?aPP/aO:0;
+    el.innerHTML=`<div class="met4">${[{l:'PP avg./เดือน',v:N(aPP/1e6)+' MB',s:'Y2025'},{l:'บาท/Order',v:N(ppO,0)+' บ.',s:'ต้นทุน PP'},{l:'Orders/วัน',v:N(aWD>0?aO/aWD:0,0),s:'Productivity'},{l:'Orders avg.',v:N(aO,0),s:'/เดือน'}].map(m=>`<div class="met"><div class="met-lbl">${m.l}</div><div class="met-val">${m.v}</div><div class="met-sub">${m.s}</div></div>`).join('')}</div>
+    <div class="g2"><div class="panel"><div class="ph"><div class="pt">Orders เทรนด์</div></div><div id="an-pp-ord" style="min-height:130px"></div></div>
+    <div class="panel"><div class="ph"><div class="pt">บาท/Order รายเดือน</div></div>${mos.map(m=>{const v=yrd[m].ord>0?(yrd[m].pp||0)/yrd[m].ord:0;return barRow(MO[m],+v.toFixed(0),Math.max(...mos.map(x=>yrd[x].ord>0?(yrd[x].pp||0)/yrd[x].ord:0))||1,'bf-green',' บ.');}).join('')}</div></div>`;
+    setTimeout(()=>multiLine('an-pp-ord',[{data:mos.map(m=>({lbl:MO[m],val:yrd[m].ord||0,cur:false})),color:'#10B981',fill:'rgba(16,185,129,0.06)'}],130),10);
+  }
+  if(tab==='sales'){
+    el.innerHTML=`<div class="met4">${[{l:'Revenue avg.',v:N(aRev)+' MB',s:'/เดือน Y2025'},{l:'บาท/Order',v:N(aO>0?aRev*1e6/aO:0,0)+' บ.',s:'Revenue/Order'},{l:'Orders avg.',v:N(aO,0),s:'/เดือน'},{l:'Rev/Working Day',v:N(aWD>0?aRev/aWD:0)+' MB',s:'Productivity'}].map(m=>`<div class="met"><div class="met-lbl">${m.l}</div><div class="met-val">${m.v}</div><div class="met-sub">${m.s}</div></div>`).join('')}</div>
+    <div class="panel"><div class="ph"><div class="pt">Revenue เทรนด์ Y2025</div></div><div id="an-rev-line" style="min-height:150px"></div></div>`;
+    setTimeout(()=>multiLine('an-rev-line',[{data:mos.map(m=>({lbl:MO[m],val:yrd[m].rev||0,cur:false})),color:'#1A3A6B',fill:'rgba(26,58,107,0.06)'}],150),10);
+  }
+  if(tab==='compare'){
+    const rows=WH_KEYS.map((k,i)=>{const sr=aRev*WH_PCT[i]/100,sc=aC*WH_PCT[i]/100/1e6,ss=aS*WH_PCT[i]/100,so=aO*WH_PCT[i]/100,ppo=so>0?(aPP*WH_PCT[i]/100)/so:0,cp=sr>0?sc/sr*100:0;return{k,i,sr,sc,ss,so,ppo,cp};});
+    el.innerHTML=`<div class="ib"><div class="ib-title">⚖️ เปรียบเทียบ 5 คลัง Y2025</div>${rows.map(r=>`<div class="ib-row"><div class="ib-dot" style="background:${WH_COLS[r.i]}"></div><div class="ib-text"><strong style="color:${WH_COLS[r.i]}">${WH_LBL[r.i]}</strong>: Revenue ${N(r.sr)} MB · ขนส่ง ${N(r.sc)} MB · PP ${N(r.ppo,0)} บ./Order · %ต้นทุน ${r.cp.toFixed(2)}%</div></div>`).join('')}</div>
+    <div class="tbl-wrap"><div style="overflow-x:auto"><table><thead><tr><th>คลัง</th><th>Revenue (MB)</th><th>ขนส่ง (MB)</th><th>Storage (บ.)</th><th>PP บ./Order</th><th>%ต้นทุน</th></tr></thead><tbody>${rows.map(r=>`<tr><td style="font-weight:700;color:${WH_COLS[r.i]}">${WH_LBL[r.i]}</td><td style="font-family:'Prompt',sans-serif;font-weight:600">${N(r.sr)}</td><td>${N(r.sc)}</td><td>${N(r.ss,0)}</td><td>${N(r.ppo,0)}</td><td>${r.cp.toFixed(2)}%</td></tr>`).join('')}<tr><td><strong>รวม</strong></td><td style="font-family:'Prompt',sans-serif;font-weight:700">${N(aRev)}</td><td>${N(aC/1e6)}</td><td>${N(aS,0)}</td><td>${N(aO>0?aPP/aO:0,0)}</td><td>${(aC/1e6/aRev*100).toFixed(2)}%</td></tr></tbody></table></div></div>`;
+  }
+  if(tab==='caputilize'){
+    const cMs=Object.keys(CAP[CY]||{}).map(Number).sort();
+    const series=[{l:'HQ Pallet',fn:d=>d.hqPC>0?(d.hqPU||0)/d.hqPC*100:0,col:'#1A3A6B'},{l:'HQ Tote',fn:d=>d.hqTC>0?(d.hqTU||0)/d.hqTC*100:0,col:'#3B82F6'},{l:'MDC',fn:d=>d.mdcPC>0?(d.mdcPU||0)/d.mdcPC*100:0,col:'#F59E0B'},{l:'TKS',fn:d=>d.tksPC>0?(d.tksPU||0)/d.tksPC*100:0,col:'#F97316'},{l:'บางปู',fn:d=>d.bpPC>0?(d.bpPU||0)/d.bpPC*100:0,col:'#10B981'}];
+    el.innerHTML=`<div class="g2">${series.map(s=>`<div class="panel"><div class="ph"><div class="pt" style="color:${s.col}">${s.l}</div></div>${cMs.length?cMs.map(m=>{const d=getCD(CY,m);const v=s.fn(d);return`<div class="br"><div class="bl">${MO[m]}</div><div class="bt"><div class="prog-fill ${pCls(v/100)}" style="height:100%;width:${Math.min(100,v).toFixed(1)}%;border-radius:4px"></div></div><div class="bv" style="color:${pCol(v/100)};font-family:'Prompt',sans-serif">${v.toFixed(1)}%</div></div>`;}).join(''):'<div style="color:var(--txt4);font-size:13px;padding:10px">ยังไม่มีข้อมูล</div>'}</div>`).join('')}</div>`;
+  }
+}
+
+// ─── NAV ──────────────────────────────────────────────────────
+function sw(t,el){
+  document.querySelectorAll('.sec').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.nb').forEach(x=>x.classList.remove('active'));
+  document.getElementById('s-'+t).classList.add('active');
+  el.classList.add('active');
+  if(t==='history')rHist();
+  if(t==='analysis')swAn('cost',document.querySelector('.an-t'));
+  if(t==='capacity'){rCap();loadCap();}
+  if(t==='settings')document.getElementById('fb-config').value=CFG.fbConfig||'';
+}
+function swAn(tab,el){
+  document.querySelectorAll('.an-sec').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.an-t').forEach(x=>x.classList.remove('active'));
+  document.getElementById('an-'+tab).classList.add('active');
+  if(el)el.classList.add('active');
+  rAn(tab);
+}
+
+// ─── SETTINGS ────────────────────────────────────────────────
+function saveCfg(){
+  CFG.fbConfig=document.getElementById('fb-config').value.trim();
+  FIRESTORE=null;
+  localStorage.setItem('sx6_cfg',JSON.stringify(CFG));
+  document.getElementById('cfg-msg').innerHTML='<span style="color:var(--grn)">✅ บันทึก Firebase config แล้ว</span>';
+}
+async function testCfg(){
+  const msg=document.getElementById('cfg-msg');
+  try{
+    CFG.fbConfig=document.getElementById('fb-config').value.trim();
+    FIRESTORE=null;
+    msg.textContent='กำลังทดสอบ...';
+    const db=initFirebaseDb();
+    await db.collection('logistics').limit(1).get();
+    localStorage.setItem('sx6_cfg',JSON.stringify(CFG));
+    msg.innerHTML='<span style="color:var(--grn)">✅ เชื่อมต่อ Firestore สำเร็จ!</span>';
+  }catch(err){
+    msg.innerHTML='<span style="color:var(--red)">❌ เชื่อมต่อไม่ได้: '+err.message+'</span>';
+  }
+}
+function exportData(){const blob=new Blob([JSON.stringify({logistics:DB,capacity:CAP},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='synnex_'+new Date().toISOString().slice(0,10)+'.json';a.click();}
+
+// ─── COMBINED RENDER ─────────────────────────────────────────
+function rDash(){
+  rMissPanel();rKPI();rCap();rLineMulti();rDonutRev();rDonutStor();rStatus();
+  const te=document.getElementById('trend-tag');if(te)te.textContent='Y'+dispYr;
+}
+
+// ─── INIT ─────────────────────────────────────────────────────
+initDP();
+rAlerts();
+// render charts after DOM paint
+requestAnimationFrame(()=>setTimeout(()=>{rDash();rHist();},60));
+// auto sync on load
+if(CFG.fbConfig)setTimeout(()=>syncFromDb(true),1500);
+</script>
+</body>
+</html>
