@@ -1098,7 +1098,7 @@ function loadCap(){
   highlightCapMissing(dispYr,dispMo);
 }
 
-function saveCap(){
+async function saveCap(){
   const yr=dispYr,mo=dispMo;
   const g=(id)=>parseFloat(document.getElementById(id).value)||null;
   const row=Object.assign({},(CAP[yr]||{})[mo]||{});
@@ -1112,8 +1112,17 @@ function saveCap(){
   else Object.assign(row,patch[selectedCapWh]||{});
   if(!CAP[yr])CAP[yr]={};CAP[yr][mo]=Object.assign(CAP[yr][mo]||{},row);
   localStorage.setItem('sx6_cap',JSON.stringify(CAP));
-  const ok=document.getElementById('cap-ok');ok.style.display='flex';setTimeout(()=>ok.style.display='none',3000);
-  postToDb({type:'capacity',yr,mo,...row});
+  const ok=document.getElementById('cap-ok');ok.style.display='flex';ok.innerHTML='⏳ บันทึกในเครื่องแล้ว กำลังส่งไป Firebase...';
+  const res=await postToDb({type:'capacity',yr,mo,...row});
+  if(res.ok){
+    ok.innerHTML='✅ บันทึก Capacity ลง Firebase สำเร็จ!';
+    setTimeout(()=>ok.style.display='none',3000);
+  }else{
+    ok.innerHTML=`⚠️ บันทึกในเครื่องแล้ว แต่ส่งไป Firebase ไม่สำเร็จ: ${res.error}`;
+    ok.style.background='var(--acc3)';
+    ok.style.borderColor='rgba(245,158,11,.35)';
+    ok.style.color='#92400E';
+  }
   rCap();rKPI();highlightCapMissing(yr,mo);
 }
 
@@ -1269,7 +1278,7 @@ function loadFrm(){
   if(d.note)document.getElementById('e-note').value=d.note||'';
 }
 
-function saveFrm(){
+async function saveFrm(){
   const yr=+document.getElementById('e-yr').value,mo=+document.getElementById('e-mo').value;
   const g=(id)=>{const v=parseFloat(document.getElementById(id)?.value);return isNaN(v)?null:v;};
   const gs=(id)=>document.getElementById(id)?.value||null;
@@ -1283,9 +1292,18 @@ function saveFrm(){
   if(!DB[yr])DB[yr]={};
   DB[yr][mo]=Object.assign(DB[yr][mo]||{},row);
   localStorage.setItem('sx6_db',JSON.stringify(DB));
-  const ok=document.getElementById('save-ok');ok.style.display='flex';setTimeout(()=>ok.style.display='none',3000);
+  const ok=document.getElementById('save-ok');ok.style.display='flex';ok.innerHTML='⏳ บันทึกในเครื่องแล้ว กำลังส่งไป Firebase...';
   clearHighlight();
-  postToDb({type:'logistics',yr,mo,...row});
+  const res=await postToDb({type:'logistics',yr,mo,...row});
+  if(res.ok){
+    ok.innerHTML='✅ บันทึกข้อมูลลง Firebase สำเร็จ';
+    setTimeout(()=>ok.style.display='none',3000);
+  }else{
+    ok.innerHTML=`⚠️ บันทึกในเครื่องแล้ว แต่ส่งไป Firebase ไม่สำเร็จ: ${res.error}`;
+    ok.style.background='var(--acc3)';
+    ok.style.borderColor='rgba(245,158,11,.35)';
+    ok.style.color='#92400E';
+  }
   rDash();rAlerts();
 }
 
@@ -1471,8 +1489,10 @@ async function postToDb(payload){
       yr,mo,
       _updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true});
+    return{ok:true,collection,id:docId(yr,mo)};
   }catch(err){
     console.warn('Firestore save failed:',err);
+    return{ok:false,error:err&&err.message?err.message:String(err)};
   }
 }
 
