@@ -558,8 +558,14 @@ tr:hover td{background:var(--b100)}
     <div class="panel">
       <div class="fsec">📦 Pick-Pack Operations</div>
       <div class="fg">
-        <div class="fgrp"><label>Orders (ใบสั่ง)</label><input type="number" id="e-ord" placeholder="เช่น 81909"></div>
+        <div class="fgrp"><label>Orders รวมทุกคลัง (ใบสั่ง)</label><input type="number" id="e-ord" placeholder="รวมอัตโนมัติจากรายคลัง หรือกรอกเอง"></div>
         <div class="fgrp"><label>Items (รายการ)</label><input type="number" id="e-itm" placeholder="เช่น 146696"></div>
+      </div>
+      <div class="fg4">
+        <div class="fgrp"><label>Orders HQ</label><input type="number" id="e-ord-hq" placeholder="HQ" oninput="syncPickTotals()"></div>
+        <div class="fgrp"><label>Orders MDC</label><input type="number" id="e-ord-mdc" placeholder="MDC" oninput="syncPickTotals()"></div>
+        <div class="fgrp"><label>Orders TKS</label><input type="number" id="e-ord-tks" placeholder="TKS" oninput="syncPickTotals()"></div>
+        <div class="fgrp"><label>Orders บางปู</label><input type="number" id="e-ord-bp" placeholder="บางปู" oninput="syncPickTotals()"></div>
       </div>
       <div class="fg">
         <div class="fgrp"><label>Cartons (กล่อง)</label><input type="number" id="e-cartons" placeholder="เช่น 181943"></div>
@@ -592,12 +598,18 @@ tr:hover td{background:var(--b100)}
 
   <!-- Section 3: ค่าบริการคลัง IT -->
   <div class="panel" style="margin-bottom:12px">
-    <div class="fsec">🏭 ค่าบริการบริหารคลังสินค้า IT (MDC+TKS)</div>
+    <div class="fsec">🏭 ค่าบริการบริหารคลังสินค้า IT</div>
     <div class="fg4">
       <div class="fgrp"><label>Storage Charges (บาท)</label><input type="number" id="e-stor" placeholder="เช่น 1251907" step="0.01"></div>
-      <div class="fgrp"><label>ค่า Pick-Pack MDC+TKS (บาท)</label><input type="number" id="e-pp" placeholder="เช่น 849731" step="0.01"></div>
+      <div class="fgrp"><label>ค่า Pick-Pack รวมทุกคลัง (บาท)</label><input type="number" id="e-pp" placeholder="รวมอัตโนมัติจากรายคลัง หรือกรอกเอง" step="0.01"></div>
       <div class="fgrp"><label>Additional Job (บาท)</label><input type="number" id="e-adjjob" placeholder="เช่น 35000" step="0.01"></div>
       <div class="fgrp"><label>ค่า Receiving (บาท)</label><input type="number" id="e-recv" placeholder="เช่น 282232" step="0.01"></div>
+    </div>
+    <div class="fg4" style="margin-top:10px">
+      <div class="fgrp"><label>Pick-Pack HQ (บาท)</label><input type="number" id="e-pp-hq" placeholder="HQ" step="0.01" oninput="syncPickTotals()"></div>
+      <div class="fgrp"><label>Pick-Pack MDC (บาท)</label><input type="number" id="e-pp-mdc" placeholder="MDC" step="0.01" oninput="syncPickTotals()"></div>
+      <div class="fgrp"><label>Pick-Pack TKS (บาท)</label><input type="number" id="e-pp-tks" placeholder="TKS" step="0.01" oninput="syncPickTotals()"></div>
+      <div class="fgrp"><label>Pick-Pack บางปู (บาท)</label><input type="number" id="e-pp-bp" placeholder="บางปู" step="0.01" oninput="syncPickTotals()"></div>
     </div>
   </div>
 
@@ -645,7 +657,7 @@ tr:hover td{background:var(--b100)}
   <div class="tbl-wrap">
     <div style="overflow-x:auto">
       <table>
-        <thead><tr><th>เดือน</th><th>Revenue (MB)</th><th>Inventory (MB)</th><th>Orders</th><th>Items</th><th>Cartons</th><th>Units</th><th>Drop BKK</th><th>Cost BKK (MB)</th><th>Drop UPC</th><th>Cost UPC (MB)</th><th>Storage (MB)</th><th>PP (MB)</th><th>Adj Job</th><th>Receiving</th><th>WD</th><th>COA</th><th>HQ%</th><th>MDC%</th><th>TKS%</th><th>บางปู%</th><th>สถานะ</th></tr></thead>
+        <thead><tr><th>เดือน</th><th>Revenue (MB)</th><th>Inventory (MB)</th><th>Orders รวม</th><th>Orders HQ</th><th>Orders MDC</th><th>Orders TKS</th><th>Orders บางปู</th><th>Items</th><th>Cartons</th><th>Units</th><th>Drop BKK</th><th>Cost BKK (MB)</th><th>Drop UPC</th><th>Cost UPC (MB)</th><th>Storage (MB)</th><th>PP รวม (MB)</th><th>PP HQ</th><th>PP MDC</th><th>PP TKS</th><th>PP บางปู</th><th>Adj Job</th><th>Receiving</th><th>WD</th><th>COA</th><th>HQ%</th><th>MDC%</th><th>TKS%</th><th>บางปู%</th><th>สถานะ</th></tr></thead>
         <tbody id="h-body"></tbody>
       </table>
     </div>
@@ -814,7 +826,8 @@ function setViewAll(){viewMode='all';document.getElementById('view-month').style
 function getCD(yr,mo){return((CAP[yr]||{})[mo])||{};}
 function missLogFields(yr,mo){
   const d=(DB[yr]||{})[mo]||{};
-  return[['rev','Revenue'],['inv','Inventory'],['ord','Orders'],['cbkk','Cost BKK'],['cupc','Cost UPC'],['stor','Storage'],['wd','Working Days']].filter(c=>d[c[0]]===null||d[c[0]]===undefined).map(c=>c[1]);
+  const has=(key)=>key==='ord'||key==='pp'?pickMetric(d,PICK_WH_OPTIONS[0],key).val!=null:d[key]!=null;
+  return[['rev','Revenue'],['inv','Inventory'],['ord','Orders'],['cbkk','Cost BKK'],['cupc','Cost UPC'],['stor','Storage'],['pp','Pick-Pack'],['wd','Working Days']].filter(c=>!has(c[0])).map(c=>c[1]);
 }
 function missCapFields(yr,mo){
   const d=getCD(yr,mo);
@@ -827,6 +840,78 @@ const CAP_FIELD_GROUPS={
   bp:[{key:'bpPU',id:'bp-pu',lbl:'บางปู Pallet ใช้อยู่'}]
 };
 let selectedCapWh='all';
+let selectedPickWh='all';
+let selectedAnWh='all';
+
+const PICK_WH_OPTIONS=[
+  {key:'all',lbl:'รวมทุกคลัง',suffix:null,pct:100},
+  {key:'hq',lbl:'HQ',suffix:'hq',pct:87},
+  {key:'mdc',lbl:'MDC',suffix:'mdc',pct:9},
+  {key:'tks',lbl:'TKS',suffix:'tks',pct:2},
+  {key:'bp',lbl:'บางปู',suffix:'bp',pct:2}
+];
+function getPickWhOption(){
+  return PICK_WH_OPTIONS.find(x=>x.key===selectedAnWh)||PICK_WH_OPTIONS[0];
+}
+function splitSum(d,key){
+  const vals=PICK_WH_OPTIONS.filter(o=>o.suffix).map(o=>d?.[`${key}_${o.suffix}`]).filter(v=>v!=null);
+  return vals.length?vals.reduce((a,v)=>a+(+v||0),0):null;
+}
+function pickMetric(d,opt,key){
+  if(!d)return{val:null,estimated:false};
+  if(!opt.suffix){
+    const split=splitSum(d,key);
+    return{val:split!=null?split:d[key],estimated:false};
+  }
+  const k=`${key}_${opt.suffix}`;
+  if(d[k]!=null)return{val:d[k],estimated:false};
+  if(key==='ord'||key==='pp')return{val:null,estimated:false};
+  if(d[key]!=null)return{val:d[key]*opt.pct/100,estimated:true};
+  return{val:null,estimated:false};
+}
+function setPickWh(wh){
+  selectedAnWh=wh||'all';
+  selectedPickWh=selectedAnWh;
+  rAn('pickpack');
+}
+function setAnWh(wh,tab){
+  selectedAnWh=wh||'all';
+  selectedPickWh=selectedAnWh;
+  rAn(tab);
+}
+function anWhToolbar(tab){
+  return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">${PICK_WH_OPTIONS.map(o=>`<button class="vt-btn ${o.key===selectedAnWh?'active':''}" onclick="setAnWh('${o.key}','${tab}')">${o.lbl}</button>`).join('')}</div>`;
+}
+function anMetric(d,opt,key){
+  return pickMetric(d,opt,key);
+}
+function anVal(d,opt,key){
+  const r=anMetric(d,opt,key);
+  return r.val!=null?+r.val:0;
+}
+function anEstimated(yrd,mos,opt,keys){
+  return opt.key!=='all'&&mos.some(m=>keys.some(k=>anMetric(yrd[m]||{},opt,k).estimated));
+}
+function anEstimateNote(show){
+  return show?'<div class="ib" style="margin-top:12px"><div class="ib-row"><div class="ib-dot"></div><div class="ib-text">หมายเหตุ: บางรายการยังไม่มีข้อมูลแยกคลังครบ ระบบใช้ค่าจริงที่มีอยู่ก่อน และประมาณรายการที่ขาดจากสัดส่วนคลังเดิม</div></div></div>':'';
+}
+function inputNum(id){
+  const v=parseFloat(document.getElementById(id)?.value);
+  return isNaN(v)?null:v;
+}
+function sumInputs(ids){
+  const vals=ids.map(inputNum).filter(v=>v!=null);
+  return vals.length?vals.reduce((a,v)=>a+v,0):null;
+}
+function setInput(id,v){
+  const el=document.getElementById(id);if(el)el.value=(v!=null&&v!==undefined&&v!==0)?(typeof v==='number'?+v.toFixed(2):v):'';
+}
+function syncPickTotals(){
+  const ord=sumInputs(['e-ord-hq','e-ord-mdc','e-ord-tks','e-ord-bp']);
+  const pp=sumInputs(['e-pp-hq','e-pp-mdc','e-pp-tks','e-pp-bp']);
+  if(ord!=null)setInput('e-ord',Math.round(ord));
+  if(pp!=null)setInput('e-pp',pp);
+}
 
 function syncCapPeriodInputs(){
   const cy=document.getElementById('cap-year');
@@ -1288,10 +1373,11 @@ function rHist(){
     rows+=`<tr onclick="jumpToMonth(${yr},${m});sw('dashboard',document.querySelectorAll('.nb')[0])" style="cursor:pointer">
       <td style="font-weight:600">${MOF[m]}</td>
       <td style="font-family:'Prompt',sans-serif;font-weight:600">${N(d.rev)}</td><td>${N(d.inv)}</td>
-      <td>${N(d.ord,0)}</td><td>${N(d.itm,0)}</td><td>${N(d.cartons,0)}</td><td>${N(d.units,0)}</td>
+      <td>${N(pickMetric(d,PICK_WH_OPTIONS[0],'ord').val,0)}</td><td>${N(d.ord_hq,0)}</td><td>${N(d.ord_mdc,0)}</td><td>${N(d.ord_tks,0)}</td><td>${N(d.ord_bp,0)}</td>
+      <td>${N(d.itm,0)}</td><td>${N(d.cartons,0)}</td><td>${N(d.units,0)}</td>
       <td>${N(d.dbkk,0)}</td><td>${N((d.cbkk||0)/1e6)}</td>
       <td>${N(d.dupc,0)}</td><td>${N((d.cupc||0)/1e6)}</td>
-      <td>${N((d.stor||0)/1e6)}</td><td>${N((d.pp||0)/1e6)}</td>
+      <td>${N((d.stor||0)/1e6)}</td><td>${N((pickMetric(d,PICK_WH_OPTIONS[0],'pp').val||0)/1e6)}</td><td>${N((d.pp_hq||0)/1e6)}</td><td>${N((d.pp_mdc||0)/1e6)}</td><td>${N((d.pp_tks||0)/1e6)}</td><td>${N((d.pp_bp||0)/1e6)}</td>
       <td>${N(d.adjjob,0)}</td><td>${N(d.recv,0)}</td>
       <td>${d.wd||'–'}</td><td>${N(d.coa,0)}</td>
       <td>${pBdg(cd.hqPU,cd.hqPC||4432)}</td><td>${pBdg(cd.mdcPU,cd.mdcPC||6700)}</td>
@@ -1309,22 +1395,33 @@ function loadFrm(){
   const s=(id,v)=>{const e=document.getElementById(id);if(e)e.value=(v!=null&&v!==undefined&&v!==0)?v:'';};
   s('e-rev',d.rev);s('e-inv',d.inv);s('e-wd',d.wd);s('e-coa',d.coa);
   s('e-ord',d.ord);s('e-itm',d.itm);s('e-cartons',d.cartons);s('e-units',d.units);
+  s('e-ord-hq',d.ord_hq);s('e-ord-mdc',d.ord_mdc);s('e-ord-tks',d.ord_tks);s('e-ord-bp',d.ord_bp);
   s('e-qty',d.qty);s('e-prework',d.prework);
   s('e-dbkk',d.dbkk);s('e-cbkk',d.cbkk);s('e-dupc',d.dupc);s('e-cupc',d.cupc);
   s('e-stor',d.stor);s('e-pp',d.pp);s('e-adjjob',d.adjjob);s('e-recv',d.recv);
+  s('e-pp-hq',d.pp_hq);s('e-pp-mdc',d.pp_mdc);s('e-pp-tks',d.pp_tks);s('e-pp-bp',d.pp_bp);
   s('e-ot-hr',d.ot_hr);s('e-ot-thb',d.ot_thb);
   if(d.note)document.getElementById('e-note').value=d.note||'';
+  syncPickTotals();
 }
 
 async function saveFrm(){
   const yr=+document.getElementById('e-yr').value,mo=+document.getElementById('e-mo').value;
   const g=(id)=>{const v=parseFloat(document.getElementById(id)?.value);return isNaN(v)?null:v;};
   const gs=(id)=>document.getElementById(id)?.value||null;
+  const ordSplit={ord_hq:g('e-ord-hq'),ord_mdc:g('e-ord-mdc'),ord_tks:g('e-ord-tks'),ord_bp:g('e-ord-bp')};
+  const ppSplit={pp_hq:g('e-pp-hq'),pp_mdc:g('e-pp-mdc'),pp_tks:g('e-pp-tks'),pp_bp:g('e-pp-bp')};
+  const ordSum=Object.values(ordSplit).filter(v=>v!=null).reduce((a,v)=>a+v,0);
+  const ppSum=Object.values(ppSplit).filter(v=>v!=null).reduce((a,v)=>a+v,0);
+  const hasOrdSplit=Object.values(ordSplit).some(v=>v!=null);
+  const hasPpSplit=Object.values(ppSplit).some(v=>v!=null);
   const row={rev:g('e-rev'),inv:g('e-inv'),wd:g('e-wd'),coa:g('e-coa'),
-    ord:g('e-ord'),itm:g('e-itm'),cartons:g('e-cartons'),units:g('e-units'),
+    ord:hasOrdSplit?Math.round(ordSum):g('e-ord'),...ordSplit,
+    itm:g('e-itm'),cartons:g('e-cartons'),units:g('e-units'),
     qty:g('e-qty'),prework:g('e-prework'),
     dbkk:g('e-dbkk'),cbkk:g('e-cbkk'),dupc:g('e-dupc'),cupc:g('e-cupc'),
-    stor:g('e-stor'),pp:g('e-pp'),adjjob:g('e-adjjob'),recv:g('e-recv'),
+    stor:g('e-stor'),pp:hasPpSplit?ppSum:g('e-pp'),...ppSplit,
+    adjjob:g('e-adjjob'),recv:g('e-recv'),
     ot_hr:g('e-ot-hr'),ot_thb:g('e-ot-thb'),
     note:gs('e-note'),wh:document.getElementById('e-wh').value};
   if(!DB[yr])DB[yr]={};
@@ -1347,7 +1444,8 @@ async function saveFrm(){
 
 function clrFrm(){
   ['e-rev','e-inv','e-wd','e-coa','e-ord','e-itm','e-cartons','e-units','e-qty','e-prework',
-   'e-dbkk','e-cbkk','e-dupc','e-cupc','e-stor','e-pp','e-adjjob','e-recv','e-ot-hr','e-ot-thb','e-note']
+   'e-ord-hq','e-ord-mdc','e-ord-tks','e-ord-bp',
+   'e-dbkk','e-cbkk','e-dupc','e-cupc','e-stor','e-pp','e-pp-hq','e-pp-mdc','e-pp-tks','e-pp-bp','e-adjjob','e-recv','e-ot-hr','e-ot-thb','e-note']
   .forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
 }
 
@@ -1385,7 +1483,7 @@ function highlightMissing(yr,mo){
   // วงแดงช่องที่ยังว่าง
   const missing=[];
   FIELD_MAP.forEach(({key,id,lbl})=>{
-    const val=d[key];
+    const val=(key==='ord'||key==='pp')?pickMetric(d,PICK_WH_OPTIONS[0],key).val:d[key];
     const isEmpty=val===null||val===undefined;
     const el=document.getElementById(id);
     if(!el)return;
@@ -1435,6 +1533,17 @@ function handleFile(file){
       const shName=wb.SheetNames.includes('Summary Operation')?'Summary Operation':wb.SheetNames[0];
       const ws=wb.Sheets[shName];
       const raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+      const norm=(v)=>String(v||'').toLowerCase().replace(/[\s_\-().]+/g,'');
+      const headerRow=raw.find(r=>r&&r.some(c=>['month','date','revenue','orders','pickpack','pphq','pickpackhq'].includes(norm(c))));
+      const headerMap={};
+      if(headerRow)headerRow.forEach((h,idx)=>{const k=norm(h);if(k)headerMap[k]=idx;});
+      const byName=(row,names)=>{
+        for(const n of names){
+          const idx=headerMap[norm(n)];
+          if(idx!==undefined)return row[idx];
+        }
+        return null;
+      };
       // Parse rows
       let imported=0,skipped=0;
       for(let i=0;i<raw.length;i++){
@@ -1449,6 +1558,20 @@ function handleFile(file){
         if(yr<2020||yr>2030||mo<1||mo>12)continue;
         const safe=(v,t='float')=>{if(v===null||v===undefined||v==='')return null;const n=typeof v==='number'?v:parseFloat(String(v).replace(/,/g,''));if(isNaN(n)||n===0)return null;return t==='int'?Math.round(n):Math.round(n*100)/100;};
         const d={rev:safe(row[1]),inv:safe(row[2]),coa:safe(row[3],'int'),qty:safe(row[4],'int'),prework:safe(row[5],'int'),ord:safe(row[6],'int'),itm:safe(row[7],'int'),cartons:safe(row[8],'int'),units:safe(row[9],'int'),dbkk:safe(row[10],'int'),cbkk:safe(row[11]),dupc:safe(row[12],'int'),cupc:safe(row[13]),wd:safe(row[16],'int'),stor:safe(row[21]),pp:safe(row[22]),adjjob:safe(row[23]),recv:safe(row[24]),ot_hr:safe(row[27]),ot_thb:safe(row[28]),wh:'All'};
+        Object.assign(d,{
+          ord_hq:safe(byName(row,['Order_HQ','Orders_HQ','HQ_Order','HQ_Orders','Order HQ','Orders HQ']),'int'),
+          ord_mdc:safe(byName(row,['Order_MDC','Orders_MDC','MDC_Order','MDC_Orders','Order MDC','Orders MDC']),'int'),
+          ord_tks:safe(byName(row,['Order_TKS','Orders_TKS','TKS_Order','TKS_Orders','Order TKS','Orders TKS']),'int'),
+          ord_bp:safe(byName(row,['Order_BP','Orders_BP','Order_Bangpu','Orders_Bangpu','Bangpu_Order','Bangpu_Orders','บางปู_Order','Orders บางปู']),'int'),
+          pp_hq:safe(byName(row,['PP_HQ','PickPack_HQ','Pick-Pack_HQ','Pick Pack HQ','HQ_PP','HQ_PickPack','HQ Pick-Pack'])),
+          pp_mdc:safe(byName(row,['PP_MDC','PickPack_MDC','Pick-Pack_MDC','Pick Pack MDC','MDC_PP','MDC_PickPack','MDC Pick-Pack'])),
+          pp_tks:safe(byName(row,['PP_TKS','PickPack_TKS','Pick-Pack_TKS','Pick Pack TKS','TKS_PP','TKS_PickPack','TKS Pick-Pack'])),
+          pp_bp:safe(byName(row,['PP_BP','PP_Bangpu','PickPack_BP','PickPack_Bangpu','Pick-Pack Bangpu','Pick Pack บางปู','Bangpu_PP','บางปู_PP']))
+        });
+        const os=[d.ord_hq,d.ord_mdc,d.ord_tks,d.ord_bp].filter(v=>v!=null);
+        const ps=[d.pp_hq,d.pp_mdc,d.pp_tks,d.pp_bp].filter(v=>v!=null);
+        if(os.length)d.ord=os.reduce((a,v)=>a+v,0);
+        if(ps.length)d.pp=ps.reduce((a,v)=>a+v,0);
         if(!d.rev&&!d.ord)continue;
         if(!DB[yr])DB[yr]={};
         DB[yr][mo]=Object.assign(DB[yr][mo]||{},d);
@@ -1623,17 +1746,19 @@ const syncFromSheet=syncFromDb;
 function rYoY(el){
   const YRS=[2017,2018,2019,2020,2021,2022,2023,2024,2025,2026];
   const YR_COLS=['#94A3B8','#64748B','#475569','#6366F1','#8B5CF6','#3B82F6','#F59E0B','#10B981','#1A3A6B','#EF4444'];
+  const opt=getPickWhOption();
+  const whTool=anWhToolbar('yoy');
 
   // ── Summary cards ─────────────────────────────────────────
   const summaryCards=YRS.map((yr,yi)=>{
     const yrd=DB[yr]||{};
-    const mos=Object.keys(yrd).map(Number).sort().filter(m=>(yrd[m]||{}).rev);
-    const totRev=mos.reduce((a,m)=>a+(yrd[m].rev||0),0);
-    const totOrd=mos.reduce((a,m)=>a+(yrd[m].ord||0),0);
-    const totCost=mos.reduce((a,m)=>a+((yrd[m].cbkk||0)+(yrd[m].cupc||0)),0)/1e6;
+    const mos=Object.keys(yrd).map(Number).sort().filter(m=>anVal(yrd[m]||{},opt,'rev')>0);
+    const totRev=mos.reduce((a,m)=>a+anVal(yrd[m]||{},opt,'rev'),0);
+    const totOrd=mos.reduce((a,m)=>a+anVal(yrd[m]||{},opt,'ord'),0);
+    const totCost=mos.reduce((a,m)=>a+anVal(yrd[m]||{},opt,'cbkk')+anVal(yrd[m]||{},opt,'cupc'),0)/1e6;
     const prevYr=DB[yr-1]||{};
-    const prevMos=Object.keys(prevYr).map(Number).filter(m=>(prevYr[m]||{}).rev);
-    const prevRev=prevMos.reduce((a,m)=>a+(prevYr[m].rev||0),0);
+    const prevMos=Object.keys(prevYr).map(Number).filter(m=>anVal(prevYr[m]||{},opt,'rev')>0);
+    const prevRev=prevMos.reduce((a,m)=>a+anVal(prevYr[m]||{},opt,'rev'),0);
     const chg=prevRev>0?((totRev-prevRev)/prevRev*100):null;
     return `<div class="kpi" style="background:linear-gradient(135deg,${YR_COLS[yi]}11,${YR_COLS[yi]}06)">
       <div class="kpi-top" style="background:${YR_COLS[yi]}"></div>
@@ -1664,11 +1789,11 @@ function rYoY(el){
     let row=`<tr><td style="font-weight:600;white-space:nowrap">${mt.lbl}</td>`;
     YRS.forEach(yr=>{
       const yrd=DB[yr]||{};
-      const mos=Object.keys(yrd).map(Number).filter(m=>(yrd[m]||{}).rev);
-      const total=mos.reduce((a,m)=>a+(yrd[m][mt.key]||0),0);
+      const mos=Object.keys(yrd).map(Number).filter(m=>anVal(yrd[m]||{},opt,'rev')>0);
+      const total=mos.reduce((a,m)=>a+anVal(yrd[m]||{},opt,mt.key),0);
       const prevYr=DB[yr-1]||{};
-      const prevMos=Object.keys(prevYr).map(Number).filter(m=>(prevYr[m]||{}).rev);
-      const prevTotal=prevMos.reduce((a,m)=>a+(prevYr[m][mt.key]||0),0);
+      const prevMos=Object.keys(prevYr).map(Number).filter(m=>anVal(prevYr[m]||{},opt,'rev')>0);
+      const prevTotal=prevMos.reduce((a,m)=>a+anVal(prevYr[m]||{},opt,mt.key),0);
       const chg=prevTotal>0?((total-prevTotal)/prevTotal*100):null;
       const chgHtml=chg!==null?` <span style="font-size:10px;font-weight:700;color:${chg>=0?'var(--grn)':'var(--red)'}">${chg>=0?'▲':'▼'}${Math.abs(chg).toFixed(1)}%</span>`:'';
       row+=`<td style="font-family:'Prompt',sans-serif;font-weight:600;text-align:right">${mt.fmt(total)}${chgHtml}</td>`;
@@ -1682,7 +1807,7 @@ function rYoY(el){
     const mo=mi+1;
     const bars=YRS.map((yr,yi)=>{
       const d=(DB[yr]||{})[mo]||{};
-      return{yr,rev:d.rev||0,col:YR_COLS[yi]};
+      return{yr,rev:anVal(d,opt,'rev'),col:YR_COLS[yi]};
     });
     const maxRev=Math.max(...bars.map(b=>b.rev))||1;
     const barsHtml=bars.map(b=>{
@@ -1694,8 +1819,8 @@ function rYoY(el){
       </div>`;
     }).join('');
     // คำนวณ %เปลี่ยน YoY ปี 2026 vs 2025
-    const r26=(DB[2026]||{})[mo]?.rev||0;
-    const r25=(DB[2025]||{})[mo]?.rev||0;
+    const r26=anVal((DB[2026]||{})[mo]||{},opt,'rev');
+    const r25=anVal((DB[2025]||{})[mo]||{},opt,'rev');
     const chg=r25>0?((r26-r25)/r25*100):null;
     const chgHtml=chg!==null?`<div class="yoy-chg" style="color:${chg>=0?'var(--grn)':'var(--red)'}">${chg>=0?'▲':'▼'}${Math.abs(chg).toFixed(1)}%</div>`:'';
     return `<div class="yoy-card">
@@ -1706,13 +1831,14 @@ function rYoY(el){
   }).join('');
 
   el.innerHTML=`
+    ${whTool}
     <!-- KPI Summary 4 ปี -->
     <div class="kpi-row" style="margin-bottom:20px">${summaryCards}</div>
 
     <!-- กราฟเส้น Revenue YoY -->
     <div class="panel" style="margin-bottom:16px">
       <div class="ph">
-        <div class="pt">📈 Revenue เปรียบเทียบ Year-over-Year (MB)</div>
+        <div class="pt">📈 Revenue เปรียบเทียบ Year-over-Year (MB) · ${opt.lbl}</div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           ${YRS.map((yr,i)=>`<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--txt3)"><div style="width:14px;height:3px;background:${YR_COLS[i]};border-radius:2px"></div>Y${yr}</div>`).join('')}
         </div>
@@ -1723,7 +1849,7 @@ function rYoY(el){
     <!-- บัตรรายเดือน YoY -->
     <div class="panel" style="margin-bottom:16px">
       <div class="ph">
-        <div class="pt">📊 Revenue รายเดือน แยกปี (▲▼ = 2026 vs 2025)</div>
+        <div class="pt">📊 Revenue รายเดือน แยกปี · ${opt.lbl} (▲▼ = 2026 vs 2025)</div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           ${YRS.map((yr,i)=>`<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--txt3)"><div style="width:10px;height:10px;border-radius:3px;background:${YR_COLS[i]}"></div>Y${yr}</div>`).join('')}
         </div>
@@ -1733,7 +1859,7 @@ function rYoY(el){
 
     <!-- ตารางเปรียบเทียบ -->
     <div class="panel" style="padding:0;overflow:hidden">
-      <div style="padding:14px 18px 10px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--txt2)">📋 ตารางสรุปรายปี (รวมทั้งปี)</div>
+      <div style="padding:14px 18px 10px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--txt2)">📋 ตารางสรุปรายปี (${opt.lbl})</div>
       <div style="overflow-x:auto">
         <table>
           <thead><tr>
@@ -1754,7 +1880,7 @@ function rYoY(el){
         data:Array.from({length:12},(_,mi)=>{
           const m=mi+1;
           const d=yrd[m]||{};
-          return{lbl:MO[m],val:d.rev||0,cur:false};
+          return{lbl:MO[m],val:anVal(d,opt,'rev'),cur:false};
         }),
         color:YR_COLS[i],fill:YR_COLS[i]+'15'
       };
@@ -1816,50 +1942,109 @@ function rAn(tab){
   if(tab==='yoy'){rYoY(document.getElementById('an-yoy'));return;}
   const yr=2025,yrd=DB[yr]||{};
   const mos=Object.keys(yrd).map(Number).sort().filter(m=>(yrd[m]||{}).rev);
+  const opt=getPickWhOption();
+  const whTool=anWhToolbar(tab);
   const avg=(f)=>mos.length?mos.reduce((a,m)=>a+(f(yrd[m]||{})||0),0)/mos.length:0;
-  const aRev=avg(d=>d.rev),aC=avg(d=>(d.cbkk||0)+(d.cupc||0)),aS=avg(d=>d.stor||0),aPP=avg(d=>d.pp||0),aO=avg(d=>d.ord||0),aWD=avg(d=>d.wd||22);
+  const avgOrders=(f)=>{
+    const rows=mos.map(m=>yrd[m]||{}).filter(d=>anVal(d,opt,'ord')>0);
+    return rows.length?rows.reduce((a,d)=>a+(f(d)||0),0)/rows.length:0;
+  };
+  const aRev=avg(d=>anVal(d,opt,'rev')),aC=avg(d=>anVal(d,opt,'cbkk')+anVal(d,opt,'cupc')),aS=avg(d=>anVal(d,opt,'stor')),aPP=avgOrders(d=>anVal(d,opt,'pp')),aO=avgOrders(d=>anVal(d,opt,'ord')),aWD=avgOrders(d=>d.wd||22)||22;
   const el=document.getElementById('an-'+tab);if(!el)return;
   if(tab==='cost'){
     const tot=aC+aS+aPP;
-    el.innerHTML=`<div class="ib"><div class="ib-title">💡 สรุปต้นทุน Y2025</div>${[`ค่าขนส่ง: <strong>${N(aC/1e6)} MB/เดือน</strong> = <strong>${(aC/1e6/aRev*100).toFixed(2)}%</strong> ของ Revenue`,`ค่าฝากเก็บ: <strong>${N(aS/1e6)} MB/เดือน</strong>`,`Pick-Pack: <strong>${N(aPP/1e6)} MB/เดือน</strong> = ${N(aPP/Math.max(aO,1),0)} บ./Order`,`รวมต้นทุน: <strong>${N(tot/1e6)} MB/เดือน</strong> = <strong>${(tot/1e6/aRev*100).toFixed(2)}%</strong> ของ Revenue`].map(t=>`<div class="ib-row"><div class="ib-dot"></div><div class="ib-text">${t}</div></div>`).join('')}</div>
+    const costEst=anEstimated(yrd,mos,opt,['rev','cbkk','cupc','stor','pp','ord']);
+    el.innerHTML=`${whTool}<div class="ib"><div class="ib-title">💡 สรุปต้นทุน Y2025 · ${opt.lbl}</div>${[`ค่าขนส่ง: <strong>${N(aC/1e6)} MB/เดือน</strong> = <strong>${aRev>0?(aC/1e6/aRev*100).toFixed(2):'0.00'}%</strong> ของ Revenue`,`ค่าฝากเก็บ: <strong>${N(aS/1e6)} MB/เดือน</strong>`,`Pick-Pack: <strong>${N(aPP/1e6)} MB/เดือน</strong> = ${N(aO>0?aPP/aO:0,0)} บ./Order`,`รวมต้นทุน: <strong>${N(tot/1e6)} MB/เดือน</strong> = <strong>${aRev>0?(tot/1e6/aRev*100).toFixed(2):'0.00'}%</strong> ของ Revenue`].map(t=>`<div class="ib-row"><div class="ib-dot"></div><div class="ib-text">${t}</div></div>`).join('')}</div>
     <div class="g2"><div class="panel"><div class="ph"><div class="pt">สัดส่วนต้นทุน</div></div><div id="an-cost-dn" style="min-height:150px"></div></div>
-    <div class="panel"><div class="ph"><div class="pt">% ต้นทุน/Revenue รายเดือน</div></div>${mos.map(m=>{const pct=(((yrd[m].cbkk||0)+(yrd[m].cupc||0))/1e6)/(yrd[m].rev||1)*100;return barRow(MO[m],+pct.toFixed(2),5,'bf-blue',' %');}).join('')}</div></div>`;
+    <div class="panel"><div class="ph"><div class="pt">% ต้นทุน/Revenue รายเดือน · ${opt.lbl}</div></div>${mos.map(m=>{const d=yrd[m]||{};const rev=anVal(d,opt,'rev');const pct=rev>0?((anVal(d,opt,'cbkk')+anVal(d,opt,'cupc'))/1e6)/rev*100:0;return barRow(MO[m],+pct.toFixed(2),5,'bf-blue',' %');}).join('')}</div></div>${anEstimateNote(costEst)}`;
     setTimeout(()=>donut('an-cost-dn',[{lbl:'ค่าขนส่ง',val:aC,color:'#3B82F6'},{lbl:'ค่าฝากเก็บ',val:aS,color:'#F59E0B'},{lbl:'Pick-Pack',val:aPP,color:'#10B981'}]),10);
   }
   if(tab==='transport'){
-    const aB=avg(d=>d.cbkk||0),aU=avg(d=>d.cupc||0),aDB=avg(d=>d.dbkk||0),aDU=avg(d=>d.dupc||0);
+    const transEst=anEstimated(yrd,mos,opt,['cbkk','cupc','dbkk','dupc','ord']);
+    const aB=avg(d=>anVal(d,opt,'cbkk')),aU=avg(d=>anVal(d,opt,'cupc')),aDB=avg(d=>anVal(d,opt,'dbkk')),aDU=avg(d=>anVal(d,opt,'dupc'));
     const cB=aDB>0?aB/aDB:0,cU=aDU>0?aU/aDU:0,mx=Math.max(cB,cU)||1;
-    el.innerHTML=`<div class="met4">${[{l:'Cost/Drop BKK',v:N(cB,0)+' บ.',s:'เฉลี่ย Y2025'},{l:'Cost/Drop UPC',v:N(cU,0)+' บ.',s:'เฉลี่ย Y2025'},{l:'ขนส่ง BKK avg.',v:N(aB/1e6)+' MB',s:'/เดือน'},{l:'ขนส่ง UPC avg.',v:N(aU/1e6)+' MB',s:'/เดือน'}].map(m=>`<div class="met"><div class="met-lbl">${m.l}</div><div class="met-val">${m.v}</div><div class="met-sub">${m.s}</div></div>`).join('')}</div>
+    el.innerHTML=`${whTool}<div class="met4">${[{l:'Cost/Drop BKK',v:N(cB,0)+' บ.',s:`เฉลี่ย Y2025 · ${opt.lbl}`},{l:'Cost/Drop UPC',v:N(cU,0)+' บ.',s:'เฉลี่ย Y2025'},{l:'ขนส่ง BKK avg.',v:N(aB/1e6)+' MB',s:'/เดือน'},{l:'ขนส่ง UPC avg.',v:N(aU/1e6)+' MB',s:'/เดือน'}].map(m=>`<div class="met"><div class="met-lbl">${m.l}</div><div class="met-val">${m.v}</div><div class="met-sub">${m.s}</div></div>`).join('')}</div>
     <div class="g2"><div class="panel"><div class="ph"><div class="pt">Cost/Drop เปรียบเทียบ</div></div>${barRow('BKK',+cB.toFixed(0),mx,'bf-gold')}  ${barRow('UPC',+cU.toFixed(0),mx,'bf-blue')}</div>
-    <div class="panel"><div class="ph"><div class="pt">ค่าขนส่ง BKK รายเดือน</div></div><div id="an-trans-line" style="min-height:130px"></div></div></div>`;
-    setTimeout(()=>multiLine('an-trans-line',[{data:mos.map(m=>({lbl:MO[m],val:(yrd[m].cbkk||0)/1e6,cur:false})),color:'#F59E0B',fill:'rgba(245,158,11,0.06)'}],130),10);
+    <div class="panel"><div class="ph"><div class="pt">ค่าขนส่ง BKK รายเดือน · ${opt.lbl}</div></div><div id="an-trans-line" style="min-height:130px"></div></div></div>${anEstimateNote(transEst)}`;
+    setTimeout(()=>multiLine('an-trans-line',[{data:mos.map(m=>({lbl:MO[m],val:anVal(yrd[m]||{},opt,'cbkk')/1e6,cur:false})),color:'#F59E0B',fill:'rgba(245,158,11,0.06)'}],130),10);
   }
   if(tab==='storage'){
-    el.innerHTML=`<div class="met4">${[{l:'Storage avg./เดือน',v:N(aS/1e6)+' MB',s:'Y2025'},{l:'Storage/Order',v:N(aS/Math.max(aO,1),0)+' บ.',s:'ต้นทุนต่อ Order'},{l:'Inventory avg.',v:N(avg(d=>d.inv))+' MB',s:'/เดือน'},{l:'% of Revenue',v:((aS/1e6)/aRev*100).toFixed(2)+'%',s:'ค่าฝาก/Revenue'}].map(m=>`<div class="met"><div class="met-lbl">${m.l}</div><div class="met-val">${m.v}</div><div class="met-sub">${m.s}</div></div>`).join('')}</div>
-    <div class="panel"><div class="ph"><div class="pt">Storage เทรนด์ Y2025</div></div><div id="an-stor-line" style="min-height:140px"></div></div>`;
-    setTimeout(()=>multiLine('an-stor-line',[{data:mos.map(m=>({lbl:MO[m],val:(yrd[m].stor||0)/1e6,cur:false})),color:'#F59E0B',fill:'rgba(245,158,11,0.06)'}],140),10);
+    const storEst=anEstimated(yrd,mos,opt,['stor','ord','inv','rev']);
+    el.innerHTML=`${whTool}<div class="met4">${[{l:'Storage avg./เดือน',v:N(aS/1e6)+' MB',s:`Y2025 · ${opt.lbl}`},{l:'Storage/Order',v:N(aO>0?aS/aO:0,0)+' บ.',s:'ต้นทุนต่อ Order'},{l:'Inventory avg.',v:N(avg(d=>anVal(d,opt,'inv')))+' MB',s:'/เดือน'},{l:'% of Revenue',v:(aRev>0?(aS/1e6)/aRev*100:0).toFixed(2)+'%',s:'ค่าฝาก/Revenue'}].map(m=>`<div class="met"><div class="met-lbl">${m.l}</div><div class="met-val">${m.v}</div><div class="met-sub">${m.s}</div></div>`).join('')}</div>
+    <div class="panel"><div class="ph"><div class="pt">Storage เทรนด์ Y2025 · ${opt.lbl}</div></div><div id="an-stor-line" style="min-height:140px"></div></div>${anEstimateNote(storEst)}`;
+    setTimeout(()=>multiLine('an-stor-line',[{data:mos.map(m=>({lbl:MO[m],val:anVal(yrd[m]||{},opt,'stor')/1e6,cur:false})),color:'#F59E0B',fill:'rgba(245,158,11,0.06)'}],140),10);
   }
   if(tab==='pickpack'){
-    const ppO=aO>0?aPP/aO:0;
-    el.innerHTML=`<div class="met4">${[{l:'PP avg./เดือน',v:N(aPP/1e6)+' MB',s:'Y2025'},{l:'บาท/Order',v:N(ppO,0)+' บ.',s:'ต้นทุน PP'},{l:'Orders/วัน',v:N(aWD>0?aO/aWD:0,0),s:'Productivity'},{l:'Orders avg.',v:N(aO,0),s:'/เดือน'}].map(m=>`<div class="met"><div class="met-lbl">${m.l}</div><div class="met-val">${m.v}</div><div class="met-sub">${m.s}</div></div>`).join('')}</div>
+    const whBtns=PICK_WH_OPTIONS.map(o=>`<button class="vt-btn ${o.key===selectedAnWh?'active':''}" onclick="setPickWh('${o.key}')">${o.lbl}</button>`).join('');
+    const rawRows=mos.map(m=>{
+      const d=yrd[m]||{};
+      const ord=pickMetric(d,opt,'ord');
+      const pp=pickMetric(d,opt,'pp');
+      const wd=d.wd||22;
+      const ordVal=ord.val!=null?+ord.val:0;
+      const ppVal=pp.val!=null?+pp.val:null;
+      return{m,ord:ordVal,pp:ppVal,wd,estimated:ord.estimated||pp.estimated,ppo:(ordVal>0&&ppVal!=null)?ppVal/ordVal:null};
+    });
+    const ppRows=rawRows.filter(x=>x.ord>0);
+    const ppFilled=ppRows.filter(x=>x.ppo!=null);
+    const ppAvg=ppFilled.length?ppFilled.reduce((a,x)=>a+x.pp,0)/ppFilled.length:0;
+    const ordAvg=ppRows.length?ppRows.reduce((a,x)=>a+x.ord,0)/ppRows.length:0;
+    const wdAvg=ppRows.length?ppRows.reduce((a,x)=>a+(x.wd||22),0)/ppRows.length:22;
+    const ppO=ppFilled.length?ppFilled.reduce((a,x)=>a+x.ppo,0)/ppFilled.length:0;
+    const ppMax=Math.max(...ppFilled.map(x=>x.ppo||0),1);
+    const hasEstimated=ppRows.some(x=>x.estimated)&&opt.key!=='all';
+    let ppMonthly='';
+    if(!ppRows.length){
+      ppMonthly='<div style="text-align:center;color:var(--txt3);padding:20px;font-size:12px;line-height:1.7"><div style="font-size:26px;margin-bottom:6px">📦</div><strong>ไม่มีเดือนที่มี Order มากกว่า 0</strong><br>ระบบข้ามเดือนที่เป็น 0 Order แล้ว</div>';
+    }else if(ppFilled.length){
+      ppMonthly=ppRows.map(x=>x.ppo!=null?barRow(MO[x.m],+x.ppo.toFixed(0),ppMax,'bf-green',' บ.'):`<div class="br"><div class="bl">${MO[x.m]}</div><div class="bt" style="background:#F8FAFC;border:1px dashed var(--bdr2)"></div><div class="bv" style="color:var(--txt4)">ยังไม่กรอก PP</div></div>`).join('');
+    }else{
+      ppMonthly=`<div style="text-align:center;color:var(--txt3);padding:20px;font-size:12px;line-height:1.7"><div style="font-size:26px;margin-bottom:6px">📦</div><strong>ยังไม่มีข้อมูล Pick-Pack ของ${opt.lbl}</strong><br>กรอกช่อง ค่า Pick-Pack MDC+TKS (บาท) ในหน้า กรอกข้อมูล<br><button class="btn-o" style="margin-top:10px;padding:6px 10px;font-size:11px" onclick="goFill(${dispYr},${dispMo})">กรอก Pick-Pack</button></div>`;
+    }
+    const note=hasEstimated?'<div class="ib" style="margin-top:12px"><div class="ib-row"><div class="ib-dot"></div><div class="ib-text">หมายเหตุ: ยังไม่มีข้อมูล Order/Pick-Pack แยกคลังครบ ระบบจึงประมาณจากสัดส่วนคลังเดิม และข้ามเดือนที่เป็น 0 Order ให้แล้ว</div></div></div>':'';
+    el.innerHTML=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">${whBtns}</div>
+    <div class="met4">${[{l:'PP avg./เดือน',v:N(ppAvg/1e6)+' MB',s:`Y2025 · ${opt.lbl}`},{l:'บาท/Order',v:N(ppO,0)+' บ.',s:'ต้นทุน PP'},{l:'Orders/วัน',v:N(wdAvg>0?ordAvg/wdAvg:0,0),s:'Productivity'},{l:'Orders avg.',v:N(ordAvg,0),s:'/เดือน'}].map(m=>`<div class="met"><div class="met-lbl">${m.l}</div><div class="met-val">${m.v}</div><div class="met-sub">${m.s}</div></div>`).join('')}</div>
     <div class="g2"><div class="panel"><div class="ph"><div class="pt">Orders เทรนด์</div></div><div id="an-pp-ord" style="min-height:130px"></div></div>
-    <div class="panel"><div class="ph"><div class="pt">บาท/Order รายเดือน</div></div>${mos.map(m=>{const v=yrd[m].ord>0?(yrd[m].pp||0)/yrd[m].ord:0;return barRow(MO[m],+v.toFixed(0),Math.max(...mos.map(x=>yrd[x].ord>0?(yrd[x].pp||0)/yrd[x].ord:0))||1,'bf-green',' บ.');}).join('')}</div></div>`;
-    setTimeout(()=>multiLine('an-pp-ord',[{data:mos.map(m=>({lbl:MO[m],val:yrd[m].ord||0,cur:false})),color:'#10B981',fill:'rgba(16,185,129,0.06)'}],130),10);
+    <div class="panel"><div class="ph"><div class="pt">บาท/Order รายเดือน · ${opt.lbl}</div></div>${ppMonthly}</div></div>${note}`;
+    setTimeout(()=>multiLine('an-pp-ord',[{data:ppRows.map(x=>({lbl:MO[x.m],val:x.ord,cur:false})),color:'#10B981',fill:'rgba(16,185,129,0.06)'}],130),10);
   }
   if(tab==='sales'){
-    el.innerHTML=`<div class="met4">${[{l:'Revenue avg.',v:N(aRev)+' MB',s:'/เดือน Y2025'},{l:'บาท/Order',v:N(aO>0?aRev*1e6/aO:0,0)+' บ.',s:'Revenue/Order'},{l:'Orders avg.',v:N(aO,0),s:'/เดือน'},{l:'Rev/Working Day',v:N(aWD>0?aRev/aWD:0)+' MB',s:'Productivity'}].map(m=>`<div class="met"><div class="met-lbl">${m.l}</div><div class="met-val">${m.v}</div><div class="met-sub">${m.s}</div></div>`).join('')}</div>
-    <div class="panel"><div class="ph"><div class="pt">Revenue เทรนด์ Y2025</div></div><div id="an-rev-line" style="min-height:150px"></div></div>`;
-    setTimeout(()=>multiLine('an-rev-line',[{data:mos.map(m=>({lbl:MO[m],val:yrd[m].rev||0,cur:false})),color:'#1A3A6B',fill:'rgba(26,58,107,0.06)'}],150),10);
+    const salesEst=anEstimated(yrd,mos,opt,['rev','ord','wd']);
+    el.innerHTML=`${whTool}<div class="met4">${[{l:'Revenue avg.',v:N(aRev)+' MB',s:`/เดือน Y2025 · ${opt.lbl}`},{l:'บาท/Order',v:N(aO>0?aRev*1e6/aO:0,0)+' บ.',s:'Revenue/Order'},{l:'Orders avg.',v:N(aO,0),s:'/เดือน'},{l:'Rev/Working Day',v:N(aWD>0?aRev/aWD:0)+' MB',s:'Productivity'}].map(m=>`<div class="met"><div class="met-lbl">${m.l}</div><div class="met-val">${m.v}</div><div class="met-sub">${m.s}</div></div>`).join('')}</div>
+    <div class="panel"><div class="ph"><div class="pt">Revenue เทรนด์ Y2025 · ${opt.lbl}</div></div><div id="an-rev-line" style="min-height:150px"></div></div>${anEstimateNote(salesEst)}`;
+    setTimeout(()=>multiLine('an-rev-line',[{data:mos.map(m=>({lbl:MO[m],val:anVal(yrd[m]||{},opt,'rev'),cur:false})),color:'#1A3A6B',fill:'rgba(26,58,107,0.06)'}],150),10);
   }
   if(tab==='compare'){
-    const rows=WH_KEYS.map((k,i)=>{const sr=aRev*WH_PCT[i]/100,sc=aC*WH_PCT[i]/100/1e6,ss=aS*WH_PCT[i]/100,so=aO*WH_PCT[i]/100,ppo=so>0?(aPP*WH_PCT[i]/100)/so:0,cp=sr>0?sc/sr*100:0;return{k,i,sr,sc,ss,so,ppo,cp};});
-    el.innerHTML=`<div class="ib"><div class="ib-title">⚖️ เปรียบเทียบ 5 คลัง Y2025</div>${rows.map(r=>`<div class="ib-row"><div class="ib-dot" style="background:${WH_COLS[r.i]}"></div><div class="ib-text"><strong style="color:${WH_COLS[r.i]}">${WH_LBL[r.i]}</strong>: Revenue ${N(r.sr)} MB · ขนส่ง ${N(r.sc)} MB · PP ${N(r.ppo,0)} บ./Order · %ต้นทุน ${r.cp.toFixed(2)}%</div></div>`).join('')}</div>
-    <div class="tbl-wrap"><div style="overflow-x:auto"><table><thead><tr><th>คลัง</th><th>Revenue (MB)</th><th>ขนส่ง (MB)</th><th>Storage (บ.)</th><th>PP บ./Order</th><th>%ต้นทุน</th></tr></thead><tbody>${rows.map(r=>`<tr><td style="font-weight:700;color:${WH_COLS[r.i]}">${WH_LBL[r.i]}</td><td style="font-family:'Prompt',sans-serif;font-weight:600">${N(r.sr)}</td><td>${N(r.sc)}</td><td>${N(r.ss,0)}</td><td>${N(r.ppo,0)}</td><td>${r.cp.toFixed(2)}%</td></tr>`).join('')}<tr><td><strong>รวม</strong></td><td style="font-family:'Prompt',sans-serif;font-weight:700">${N(aRev)}</td><td>${N(aC/1e6)}</td><td>${N(aS,0)}</td><td>${N(aO>0?aPP/aO:0,0)}</td><td>${(aC/1e6/aRev*100).toFixed(2)}%</td></tr></tbody></table></div></div>`;
+    const whRows=PICK_WH_OPTIONS.filter(o=>o.key!=='all').map((o,i)=>{
+      const rev=avg(d=>anVal(d,o,'rev'));
+      const c=avg(d=>anVal(d,o,'cbkk')+anVal(d,o,'cupc'));
+      const s=avg(d=>anVal(d,o,'stor'));
+      const ordRows=mos.map(m=>yrd[m]||{}).filter(d=>anVal(d,o,'ord')>0);
+      const ord=ordRows.length?ordRows.reduce((a,d)=>a+anVal(d,o,'ord'),0)/ordRows.length:0;
+      const ppRows=ordRows.filter(d=>anMetric(d,o,'pp').val!=null);
+      const pp=ppRows.length?ppRows.reduce((a,d)=>a+anVal(d,o,'pp'),0)/ppRows.length:0;
+      const ppo=ord>0?pp/ord:0;
+      const tpo=ord>0?c/ord:0;
+      const spo=ord>0?s/ord:0;
+      const cp=rev>0?((c+s+pp)/1e6)/rev*100:0;
+      const est=anEstimated(yrd,mos,o,['rev','cbkk','cupc','stor','pp','ord']);
+      return{o,i,rev,c,s,ord,pp,ppo,tpo,spo,cp,est};
+    });
+    const best=(key)=>whRows.filter(r=>r[key]>0).sort((a,b)=>a[key]-b[key])[0];
+    const bT=best('tpo'),bPP=best('ppo'),bS=best('spo'),bCP=best('cp');
+    el.innerHTML=`<div class="ib"><div class="ib-title">⚖️ เปรียบเทียบรายคลัง Y2025</div>${[
+      bT?`ค่าขนส่ง/Order ถูกสุด: <strong>${bT.o.lbl}</strong> (${N(bT.tpo,0)} บ./Order)`:null,
+      bPP?`Pick-Pack/Order ถูกสุด: <strong>${bPP.o.lbl}</strong> (${N(bPP.ppo,0)} บ./Order)`:null,
+      bS?`Storage/Order ถูกสุด: <strong>${bS.o.lbl}</strong> (${N(bS.spo,0)} บ./Order)`:null,
+      bCP?`% ต้นทุนต่อ Revenue ต่ำสุด: <strong>${bCP.o.lbl}</strong> (${bCP.cp.toFixed(2)}%)`:null
+    ].filter(Boolean).map(t=>`<div class="ib-row"><div class="ib-dot"></div><div class="ib-text">${t}</div></div>`).join('')}</div>
+    <div class="tbl-wrap"><div style="overflow-x:auto"><table><thead><tr><th>คลัง</th><th>Revenue (MB)</th><th>Orders avg.</th><th>ขนส่ง/Order</th><th>PP/Order</th><th>Storage/Order</th><th>%ต้นทุน</th></tr></thead><tbody>${whRows.map(r=>`<tr><td style="font-weight:700;color:${WH_COLS[r.i]}">${r.o.lbl}${r.est?' *':''}</td><td style="font-family:'Prompt',sans-serif;font-weight:600">${N(r.rev)}</td><td>${N(r.ord,0)}</td><td>${N(r.tpo,0)} บ.</td><td>${N(r.ppo,0)} บ.</td><td>${N(r.spo,0)} บ.</td><td>${r.cp.toFixed(2)}%</td></tr>`).join('')}<tr><td><strong>รวม</strong></td><td style="font-family:'Prompt',sans-serif;font-weight:700">${N(aRev)}</td><td>${N(aO,0)}</td><td>${N(aO>0?aC/aO:0,0)} บ.</td><td>${N(aO>0?aPP/aO:0,0)} บ.</td><td>${N(aO>0?aS/aO:0,0)} บ.</td><td>${(aRev>0?((aC+aS+aPP)/1e6)/aRev*100:0).toFixed(2)}%</td></tr></tbody></table></div></div>${anEstimateNote(whRows.some(r=>r.est))}`;
   }
   if(tab==='caputilize'){
     const cMs=Object.keys(CAP[CY]||{}).map(Number).sort();
-    const series=[{l:'HQ Pallet',fn:d=>d.hqPC>0?(d.hqPU||0)/d.hqPC*100:0,col:'#1A3A6B'},{l:'HQ Tote',fn:d=>d.hqTC>0?(d.hqTU||0)/d.hqTC*100:0,col:'#3B82F6'},{l:'MDC',fn:d=>d.mdcPC>0?(d.mdcPU||0)/d.mdcPC*100:0,col:'#F59E0B'},{l:'TKS',fn:d=>d.tksPC>0?(d.tksPU||0)/d.tksPC*100:0,col:'#F97316'},{l:'บางปู',fn:d=>d.bpPC>0?(d.bpPU||0)/d.bpPC*100:0,col:'#10B981'}];
-    el.innerHTML=`<div class="g2">${series.map(s=>`<div class="panel"><div class="ph"><div class="pt" style="color:${s.col}">${s.l}</div></div>${cMs.length?cMs.map(m=>{const d=getCD(CY,m);const v=s.fn(d);return`<div class="br"><div class="bl">${MO[m]}</div><div class="bt"><div class="prog-fill ${pCls(v/100)}" style="height:100%;width:${Math.min(100,v).toFixed(1)}%;border-radius:4px"></div></div><div class="bv" style="color:${pCol(v/100)};font-family:'Prompt',sans-serif">${v.toFixed(1)}%</div></div>`;}).join(''):'<div style="color:var(--txt4);font-size:13px;padding:10px">ยังไม่มีข้อมูล</div>'}</div>`).join('')}</div>`;
+    const allSeries=[{wh:'hq',l:'HQ Pallet',fn:d=>d.hqPC>0?(d.hqPU||0)/d.hqPC*100:0,col:'#1A3A6B'},{wh:'hq',l:'HQ Tote',fn:d=>d.hqTC>0?(d.hqTU||0)/d.hqTC*100:0,col:'#3B82F6'},{wh:'mdc',l:'MDC',fn:d=>d.mdcPC>0?(d.mdcPU||0)/d.mdcPC*100:0,col:'#F59E0B'},{wh:'tks',l:'TKS',fn:d=>d.tksPC>0?(d.tksPU||0)/d.tksPC*100:0,col:'#F97316'},{wh:'bp',l:'บางปู',fn:d=>d.bpPC>0?(d.bpPU||0)/d.bpPC*100:0,col:'#10B981'}];
+    const series=selectedAnWh==='all'?allSeries:allSeries.filter(s=>s.wh===selectedAnWh);
+    el.innerHTML=`${whTool}<div class="g2">${series.map(s=>`<div class="panel"><div class="ph"><div class="pt" style="color:${s.col}">${s.l}</div></div>${cMs.length?cMs.map(m=>{const d=getCD(CY,m);const v=s.fn(d);return`<div class="br"><div class="bl">${MO[m]}</div><div class="bt"><div class="prog-fill ${pCls(v/100)}" style="height:100%;width:${Math.min(100,v).toFixed(1)}%;border-radius:4px"></div></div><div class="bv" style="color:${pCol(v/100)};font-family:'Prompt',sans-serif">${v.toFixed(1)}%</div></div>`;}).join(''):'<div style="color:var(--txt4);font-size:13px;padding:10px">ยังไม่มีข้อมูล</div>'}</div>`).join('')}</div>`;
   }
 }
 
