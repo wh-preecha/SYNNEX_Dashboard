@@ -242,6 +242,14 @@ tr:hover td{background:var(--b100)}
 .donut-legend{flex:1;min-width:120px}
 .dl-row{display:flex;align-items:center;gap:7px;margin-bottom:8px}
 .dl-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.dual-donut{display:grid;grid-template-columns:1fr 1fr;gap:10px;min-height:168px}
+.dual-donut-card{min-width:0;border:1px solid var(--bdr);border-radius:10px;padding:8px;background:var(--g50)}
+.dual-donut-title{font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:4px;text-align:center}
+.dual-donut-card .donut-wrap{gap:6px;justify-content:center}
+.dual-donut-card .donut-wrap svg{width:112px;height:112px}
+.dual-donut-card .donut-legend{min-width:88px}
+.dual-donut-card .dl-row{gap:5px;margin-bottom:5px}
+@media(max-width:900px){.dual-donut{grid-template-columns:1fr}}
 
 /* YoY */
 .yoy-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
@@ -358,7 +366,7 @@ tr:hover td{background:var(--b100)}
         <div id="ch-donut-rev" style="min-height:160px"></div>
       </div>
       <div class="panel">
-        <div class="ph"><div class="pt">🥧 สัดส่วนค่าฝากเก็บแยกคลัง</div><div class="ptag">MB</div></div>
+        <div class="ph"><div class="pt">🥧 ค่าขนส่ง + ค่าเช่าคลัง</div><div class="ptag">MB</div></div>
         <div id="ch-donut-stor" style="min-height:160px"></div>
       </div>
       <div class="panel">
@@ -746,6 +754,12 @@ const DEFAULT_FIREBASE_CONFIG={
 };
 let CFG=JSON.parse(localStorage.getItem('sx6_cfg')||'{}');
 if(!CFG.fbConfig)CFG.fbConfig=JSON.stringify(DEFAULT_FIREBASE_CONFIG,null,2);
+try{
+  const savedCfg=parseFirebaseConfig(CFG.fbConfig);
+  if(savedCfg.projectId!=='synnex-dashboard-b0e7f')CFG.fbConfig=JSON.stringify(DEFAULT_FIREBASE_CONFIG,null,2);
+}catch(e){
+  CFG.fbConfig=JSON.stringify(DEFAULT_FIREBASE_CONFIG,null,2);
+}
 
 // Convert string keys to number
 function normalizeDB(d){const r={};Object.keys(d).forEach(yr=>{r[+yr]={};Object.keys(d[yr]).forEach(mo=>{r[+yr][+mo]=d[yr][mo];});});return r;}
@@ -1164,11 +1178,35 @@ function rDonutRev(){
 }
 
 function rDonutStor(){
-  const d=(DB[dispYr]||{})[dispMo]||{};const s=d.stor||0;
-  donut('ch-donut-stor',[
-    {lbl:'HQ',val:s*0.40,color:'#1A3A6B'},{lbl:'MDC',val:s*0.35,color:'#3B82F6'},
-    {lbl:'TKS',val:s*0.15,color:'#F59E0B'},{lbl:'บางปู',val:s*0.10,color:'#F97316'},
-  ],N(s/1e6,2),'MB ฝากเก็บ');
+  const d=(DB[dispYr]||{})[dispMo]||{};
+  const el=document.getElementById('ch-donut-stor');if(!el)return;
+  el.innerHTML=`<div class="dual-donut">
+    <div class="dual-donut-card"><div class="dual-donut-title">ค่าขนส่ง</div><div id="ch-donut-transport"></div></div>
+    <div class="dual-donut-card"><div class="dual-donut-title">ค่าเช่าคลัง</div><div id="ch-donut-rent"></div></div>
+  </div>`;
+  const trans=(d.cbkk||0)+(d.cupc||0);
+  donut('ch-donut-transport',[
+    {lbl:'BKK',val:d.cbkk||0,color:'#2563B0'},
+    {lbl:'UPC',val:d.cupc||0,color:'#F59E0B'},
+  ],N(trans/1e6,2),'MB ขนส่ง');
+  const rent=d.stor||0;
+  if(rent>0){
+    donut('ch-donut-rent',[
+      {lbl:'HQ',val:rent*0.40,color:'#1A3A6B'},
+      {lbl:'MDC',val:rent*0.35,color:'#3B82F6'},
+      {lbl:'TKS',val:rent*0.15,color:'#F59E0B'},
+      {lbl:'บางปู',val:rent*0.10,color:'#F97316'},
+    ],N(rent/1e6,2),'MB เช่าคลัง');
+  }else{
+    document.getElementById('ch-donut-rent').innerHTML=`<div style="min-height:132px;display:flex;align-items:center;justify-content:center;text-align:center;padding:12px">
+      <div>
+        <div style="font-size:26px;margin-bottom:6px">🏭</div>
+        <div style="font-size:12px;font-weight:700;color:var(--txt2);margin-bottom:4px">ยังไม่มีค่าเช่าคลัง</div>
+        <div style="font-size:11px;color:var(--txt3);line-height:1.5;margin-bottom:9px">กรอกช่อง Storage Charges (บาท)<br>ในหน้า กรอกข้อมูล</div>
+        <button class="btn-o" style="padding:6px 10px;font-size:11px" onclick="goFill(${dispYr},${dispMo})">กรอก Storage</button>
+      </div>
+    </div>`;
+  }
 }
 
 function rStatus(){
@@ -1858,11 +1896,16 @@ async function testCfg(){
     FIRESTORE=null;
     msg.textContent='กำลังทดสอบ...';
     const db=initFirebaseDb();
-    await db.collection('logistics').limit(1).get();
+    await db.collection('diagnostics').doc('connection_test').set({
+      status:'ok',
+      source:'SNDashboard_Firebase',
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true});
+    await db.collection('diagnostics').doc('connection_test').get();
     localStorage.setItem('sx6_cfg',JSON.stringify(CFG));
-    msg.innerHTML='<span style="color:var(--grn)">✅ เชื่อมต่อ Firestore สำเร็จ!</span>';
+    msg.innerHTML='<span style="color:var(--grn)">✅ เชื่อมต่อและเขียนข้อมูลทดสอบลง Firestore สำเร็จ!</span>';
   }catch(err){
-    msg.innerHTML='<span style="color:var(--red)">❌ เชื่อมต่อไม่ได้: '+err.message+'</span>';
+    msg.innerHTML='<span style="color:var(--red)">❌ เขียนข้อมูลลง Firestore ไม่ได้: '+err.message+'</span>';
   }
 }
 function exportData(){const blob=new Blob([JSON.stringify({logistics:DB,capacity:CAP},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='synnex_'+new Date().toISOString().slice(0,10)+'.json';a.click();}
