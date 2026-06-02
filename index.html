@@ -706,7 +706,17 @@ const CAP_SEED={2026:{
 // ─── STATE ────────────────────────────────────────────────────
 let DB=JSON.parse(localStorage.getItem('sx6_db')||'null')||JSON.parse(JSON.stringify(DB_SEED));
 let CAP=JSON.parse(localStorage.getItem('sx6_cap')||'null')||JSON.parse(JSON.stringify(CAP_SEED));
+const DEFAULT_FIREBASE_CONFIG={
+  apiKey:"AIzaSyAiekHutWKiseFiTeCdUFK662Q2kwLK9LQ",
+  authDomain:"synnex-dashboard-b0e7f.firebaseapp.com",
+  projectId:"synnex-dashboard-b0e7f",
+  storageBucket:"synnex-dashboard-b0e7f.firebasestorage.app",
+  messagingSenderId:"840065380497",
+  appId:"1:840065380497:web:54fd38ba6ae0ac333dcf30",
+  measurementId:"G-NN25DD4NL3"
+};
 let CFG=JSON.parse(localStorage.getItem('sx6_cfg')||'{}');
+if(!CFG.fbConfig)CFG.fbConfig=JSON.stringify(DEFAULT_FIREBASE_CONFIG,null,2);
 
 // Convert string keys to number
 function normalizeDB(d){const r={};Object.keys(d).forEach(yr=>{r[+yr]={};Object.keys(d[yr]).forEach(mo=>{r[+yr][+mo]=d[yr][mo];});});return r;}
