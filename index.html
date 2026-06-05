@@ -42,7 +42,7 @@ body{font-family:'Sarabun',sans-serif;background:#EBE8E3;color:var(--txt);min-he
 .sec{display:none}.sec.active{display:block}
 
 /* KPI */
-.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:18px}
 .kpi-wh{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:18px}
 .kpi{background:var(--wh);border:1px solid var(--bdr);border-radius:14px;padding:18px 16px;position:relative;overflow:hidden;transition:all .2s}
 .kpi:hover{box-shadow:var(--shadow);transform:translateY(-1px)}
@@ -344,6 +344,10 @@ tr:hover td{background:var(--b100)}
     <div id="dash-missing-panel" style="margin-bottom:16px"></div>
     <div class="kpi-wh" id="kpi-wh"></div>
     <div class="kpi-row" id="kpi-main"></div>
+    <div class="panel" style="margin-bottom:16px">
+      <div class="ph"><div class="pt">💸 ค่าใช้จ่ายบาทต่อยอดขาย 100 บาท</div><div class="ptag" id="expense-sales-tag"></div></div>
+      <div id="ch-expense-sales"></div>
+    </div>
     <div class="panel" style="margin-bottom:16px">
       <div class="ph"><div class="pt">📦 Capacity ภาพรวมทุกคลัง</div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
@@ -912,6 +916,14 @@ function syncPickTotals(){
   if(ord!=null)setInput('e-ord',Math.round(ord));
   if(pp!=null)setInput('e-pp',pp);
 }
+function totalExpenseThb(d){
+  const pp=pickMetric(d||{},PICK_WH_OPTIONS[0],'pp').val||0;
+  return (d?.cbkk||0)+(d?.cupc||0)+(d?.stor||0)+pp+(d?.adjjob||0)+(d?.recv||0)+(d?.ot_thb||0)+(d?.tks3||0)+(d?.tks2||0);
+}
+function expensePerSales100(d){
+  const rev=(d?.rev||0)*1e6;
+  return rev>0?totalExpenseThb(d)/rev*100:0;
+}
 
 function syncCapPeriodInputs(){
   const cy=document.getElementById('cap-year');
@@ -1045,6 +1057,8 @@ function rKPI(){
   const d=(DB[dispYr]||{})[dispMo]||{};
   const p=(DB[dispYr]||{})[dispMo-1]||(DB[dispYr-1]||{})[12]||{};
   const tc=((d.cbkk||0)+(d.cupc||0))/1e6;
+  const ex=totalExpenseThb(d);
+  const exRate=expensePerSales100(d);
   const rc=d.rev&&p.rev?((d.rev-p.rev)/p.rev*100):null;
   const chg=rc!==null?`<span class="${rc>=0?'up':'dn'}">${rc>=0?'▲':'▼'} ${Math.abs(rc).toFixed(1)}%</span>`:'';
   document.getElementById('kpi-main').innerHTML=[
@@ -1052,6 +1066,7 @@ function rKPI(){
     {lbl:'ค่าขนส่งรวม',val:N(tc,2),unit:'MB',sub:'BKK + UPC',ico:'🚚',bg:'linear-gradient(135deg,#F0FDF4,#DCFCE7)',ac:'#065F46'},
     {lbl:'Inventory',val:N(d.inv,2),unit:'MB',sub:'มูลค่าคงคลัง',ico:'🏭',bg:'linear-gradient(135deg,#FFFBEB,#FEF3C7)',ac:'#92400E'},
     {lbl:'Orders รวม',val:N(d.ord,0),unit:'',sub:`Items: ${N(d.itm,0)}`,ico:'📦',bg:'linear-gradient(135deg,#FDF4FF,#FAE8FF)',ac:'#6B21A8'},
+    {lbl:'ค่าใช้จ่าย/ยอดขาย',val:N(exRate,2),unit:'บ.',sub:`ต่อยอดขาย 100 บ. · ${N(ex/1e6,2)} MB`,ico:'💸',bg:'linear-gradient(135deg,#FFF7ED,#FFEDD5)',ac:'#C2410C'},
   ].map(k=>`<div class="kpi" style="background:${k.bg}">
     <div class="kpi-top" style="background:${k.ac}"></div>
     <div class="kpi-icon">${k.ico}</div>
@@ -1240,6 +1255,23 @@ function rLineMulti(){
   ],165);
 }
 
+function rExpenseSales(){
+  const el=document.getElementById('ch-expense-sales');if(!el)return;
+  const tag=document.getElementById('expense-sales-tag');if(tag)tag.textContent=MOF[dispMo]+' '+dispYr;
+  const yrd=DB[dispYr]||{};
+  const rows=[1,2,3,4,5,6,7,8,9,10,11,12].map(m=>{
+    const d=yrd[m]||{};
+    return{m,val:expensePerSales100(d),expense:totalExpenseThb(d),rev:d.rev||0,cur:m===dispMo};
+  }).filter(x=>x.rev>0);
+  if(!rows.length){el.innerHTML='<div style="text-align:center;color:#94A3B8;padding:18px;font-size:13px">ยังไม่มีข้อมูล Revenue สำหรับคำนวณ</div>';return;}
+  const max=Math.max(...rows.map(x=>x.val),1);
+  el.innerHTML=rows.map(x=>`<div class="br" style="${x.cur?'background:#FFF7ED;border-radius:7px;padding:4px 6px;margin-left:-6px;margin-right:-6px':''}">
+    <div class="bl">${MO[x.m]}${x.cur?' •':''}</div>
+    <div class="bt"><div class="bf ${x.val>=5?'bf-gold':'bf-green'}" style="width:${Math.min(100,x.val/max*100).toFixed(1)}%"></div></div>
+    <div class="bv" title="ค่าใช้จ่ายรวม ${N(x.expense/1e6,2)} MB">${N(x.val,2)} บ.</div>
+  </div>`).join('');
+}
+
 function rDonutRev(){
   const d=(DB[dispYr]||{})[dispMo]||{};
   const tag=document.getElementById('donut-rev-tag');if(tag)tag.textContent=MOF[dispMo]+' '+dispYr;
@@ -1400,7 +1432,7 @@ function loadFrm(){
   s('e-dbkk',d.dbkk);s('e-cbkk',d.cbkk);s('e-dupc',d.dupc);s('e-cupc',d.cupc);
   s('e-stor',d.stor);s('e-pp',d.pp);s('e-adjjob',d.adjjob);s('e-recv',d.recv);
   s('e-pp-hq',d.pp_hq);s('e-pp-mdc',d.pp_mdc);s('e-pp-tks',d.pp_tks);s('e-pp-bp',d.pp_bp);
-  s('e-ot-hr',d.ot_hr);s('e-ot-thb',d.ot_thb);
+  s('e-ot-hr',d.ot_hr);s('e-ot-thb',d.ot_thb);s('e-tks3',d.tks3);s('e-tks2',d.tks2);
   if(d.note)document.getElementById('e-note').value=d.note||'';
   syncPickTotals();
 }
@@ -1422,7 +1454,7 @@ async function saveFrm(){
     dbkk:g('e-dbkk'),cbkk:g('e-cbkk'),dupc:g('e-dupc'),cupc:g('e-cupc'),
     stor:g('e-stor'),pp:hasPpSplit?ppSum:g('e-pp'),...ppSplit,
     adjjob:g('e-adjjob'),recv:g('e-recv'),
-    ot_hr:g('e-ot-hr'),ot_thb:g('e-ot-thb'),
+    ot_hr:g('e-ot-hr'),ot_thb:g('e-ot-thb'),tks3:g('e-tks3'),tks2:g('e-tks2'),
     note:gs('e-note'),wh:document.getElementById('e-wh').value};
   if(!DB[yr])DB[yr]={};
   DB[yr][mo]=Object.assign(DB[yr][mo]||{},row);
@@ -1445,7 +1477,7 @@ async function saveFrm(){
 function clrFrm(){
   ['e-rev','e-inv','e-wd','e-coa','e-ord','e-itm','e-cartons','e-units','e-qty','e-prework',
    'e-ord-hq','e-ord-mdc','e-ord-tks','e-ord-bp',
-   'e-dbkk','e-cbkk','e-dupc','e-cupc','e-stor','e-pp','e-pp-hq','e-pp-mdc','e-pp-tks','e-pp-bp','e-adjjob','e-recv','e-ot-hr','e-ot-thb','e-note']
+   'e-dbkk','e-cbkk','e-dupc','e-cupc','e-stor','e-pp','e-pp-hq','e-pp-mdc','e-pp-tks','e-pp-bp','e-adjjob','e-recv','e-ot-hr','e-ot-thb','e-tks3','e-tks2','e-note']
   .forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
 }
 
@@ -1557,7 +1589,7 @@ function handleFile(file){
         else continue;
         if(yr<2020||yr>2030||mo<1||mo>12)continue;
         const safe=(v,t='float')=>{if(v===null||v===undefined||v==='')return null;const n=typeof v==='number'?v:parseFloat(String(v).replace(/,/g,''));if(isNaN(n)||n===0)return null;return t==='int'?Math.round(n):Math.round(n*100)/100;};
-        const d={rev:safe(row[1]),inv:safe(row[2]),coa:safe(row[3],'int'),qty:safe(row[4],'int'),prework:safe(row[5],'int'),ord:safe(row[6],'int'),itm:safe(row[7],'int'),cartons:safe(row[8],'int'),units:safe(row[9],'int'),dbkk:safe(row[10],'int'),cbkk:safe(row[11]),dupc:safe(row[12],'int'),cupc:safe(row[13]),wd:safe(row[16],'int'),stor:safe(row[21]),pp:safe(row[22]),adjjob:safe(row[23]),recv:safe(row[24]),ot_hr:safe(row[27]),ot_thb:safe(row[28]),wh:'All'};
+        const d={rev:safe(row[1]),inv:safe(row[2]),coa:safe(row[3],'int'),qty:safe(row[4],'int'),prework:safe(row[5],'int'),ord:safe(row[6],'int'),itm:safe(row[7],'int'),cartons:safe(row[8],'int'),units:safe(row[9],'int'),dbkk:safe(row[10],'int'),cbkk:safe(row[11]),dupc:safe(row[12],'int'),cupc:safe(row[13]),wd:safe(row[16],'int'),stor:safe(row[21]),pp:safe(row[22]),adjjob:safe(row[23]),recv:safe(row[24]),ot_hr:safe(row[27]),ot_thb:safe(row[28]),tks3:safe(row[29]),tks2:safe(row[30]),wh:'All'};
         Object.assign(d,{
           ord_hq:safe(byName(row,['Order_HQ','Orders_HQ','HQ_Order','HQ_Orders','Order HQ','Orders HQ']),'int'),
           ord_mdc:safe(byName(row,['Order_MDC','Orders_MDC','MDC_Order','MDC_Orders','Order MDC','Orders MDC']),'int'),
@@ -1566,7 +1598,9 @@ function handleFile(file){
           pp_hq:safe(byName(row,['PP_HQ','PickPack_HQ','Pick-Pack_HQ','Pick Pack HQ','HQ_PP','HQ_PickPack','HQ Pick-Pack'])),
           pp_mdc:safe(byName(row,['PP_MDC','PickPack_MDC','Pick-Pack_MDC','Pick Pack MDC','MDC_PP','MDC_PickPack','MDC Pick-Pack'])),
           pp_tks:safe(byName(row,['PP_TKS','PickPack_TKS','Pick-Pack_TKS','Pick Pack TKS','TKS_PP','TKS_PickPack','TKS Pick-Pack'])),
-          pp_bp:safe(byName(row,['PP_BP','PP_Bangpu','PickPack_BP','PickPack_Bangpu','Pick-Pack Bangpu','Pick Pack บางปู','Bangpu_PP','บางปู_PP']))
+          pp_bp:safe(byName(row,['PP_BP','PP_Bangpu','PickPack_BP','PickPack_Bangpu','Pick-Pack Bangpu','Pick Pack บางปู','Bangpu_PP','บางปู_PP'])),
+          tks3:safe(byName(row,['TKS3pct','TKS3','TKS_3pct','TKS 3%']))||safe(row[29]),
+          tks2:safe(byName(row,['TKS2pct','TKS2','TKS_2pct','TKS 2%']))||safe(row[30])
         });
         const os=[d.ord_hq,d.ord_mdc,d.ord_tks,d.ord_bp].filter(v=>v!=null);
         const ps=[d.pp_hq,d.pp_mdc,d.pp_tks,d.pp_bp].filter(v=>v!=null);
@@ -2097,7 +2131,7 @@ function exportData(){const blob=new Blob([JSON.stringify({logistics:DB,capacity
 
 // ─── COMBINED RENDER ─────────────────────────────────────────
 function rDash(){
-  rMissPanel();rKPI();rCap();rLineMulti();rDonutRev();rDonutStor();rStatus();
+  rMissPanel();rKPI();rExpenseSales();rCap();rLineMulti();rDonutRev();rDonutStor();rStatus();
   const te=document.getElementById('trend-tag');if(te)te.textContent='Y'+dispYr;
 }
 
