@@ -284,9 +284,11 @@ tr:hover td{background:var(--b100)}
 }
 
 @media(max-width:1024px){
+  .fg5{grid-template-columns:repeat(2,1fr)}
   .yoy-grid{grid-template-columns:repeat(2,1fr)}
 }
 @media(max-width:640px){
+  .fg5{grid-template-columns:1fr}
   .yoy-grid{grid-template-columns:1fr 1fr}
 }
 </style>
@@ -347,6 +349,10 @@ tr:hover td{background:var(--b100)}
     <div class="panel" style="margin-bottom:16px">
       <div class="ph"><div class="pt">💸 ค่าใช้จ่ายบาทต่อยอดขาย 100 บาท</div><div class="ptag" id="expense-sales-tag"></div></div>
       <div id="ch-expense-sales"></div>
+    </div>
+    <div class="panel" style="margin-bottom:16px">
+      <div class="ph"><div class="pt">📊 ค่าใช้จ่ายต่อยอดขาย เทียบปีต่อปี</div><div class="ptag">บ./ยอดขาย 100 บ.</div></div>
+      <div id="ch-expense-yoy" style="min-height:160px"></div>
     </div>
     <div class="panel" style="margin-bottom:16px">
       <div class="ph"><div class="pt">📦 Capacity ภาพรวมทุกคลัง</div>
@@ -657,6 +663,17 @@ tr:hover td{background:var(--b100)}
         <option>2026</option><option>2025</option><option>2024</option><option>2023</option><option>2022</option><option>2021</option><option>2020</option><option>2019</option><option>2018</option><option>2017</option>
       </select>
     </div>
+  </div>
+  <div class="panel" style="margin-bottom:14px">
+    <div class="fsec">⬇️ Export Data to Excel</div>
+    <div class="fg5">
+      <div class="fgrp"><label>ปีเริ่มต้น</label><select id="ex-sy"></select></div>
+      <div class="fgrp"><label>เดือนเริ่มต้น</label><select id="ex-sm"></select></div>
+      <div class="fgrp"><label>ปีสิ้นสุด</label><select id="ex-ey"></select></div>
+      <div class="fgrp"><label>เดือนสิ้นสุด</label><select id="ex-em"></select></div>
+      <div class="fgrp"><label>&nbsp;</label><button class="btn-b" style="width:100%;justify-content:center" onclick="exportHistoryExcel()">Export Excel</button></div>
+    </div>
+    <div id="export-xlsx-msg" style="font-size:12px;color:var(--txt3);margin-top:8px"></div>
   </div>
   <div class="tbl-wrap">
     <div style="overflow-x:auto">
@@ -1270,6 +1287,36 @@ function rExpenseSales(){
     <div class="bt"><div class="bf ${x.val>=5?'bf-gold':'bf-green'}" style="width:${Math.min(100,x.val/max*100).toFixed(1)}%"></div></div>
     <div class="bv" title="ค่าใช้จ่ายรวม ${N(x.expense/1e6,2)} MB">${N(x.val,2)} บ.</div>
   </div>`).join('');
+}
+
+function rExpenseYoY(){
+  const el=document.getElementById('ch-expense-yoy');if(!el)return;
+  const yrs=[...new Set(Object.keys(DB).map(Number))].sort((a,b)=>a-b);
+  const rows=yrs.map(yr=>{
+    const yrd=DB[yr]||{};
+    let rev=0,expense=0,months=0;
+    for(let m=1;m<=12;m++){
+      const d=yrd[m]||{};
+      if((d.rev||0)>0){
+        rev+=(d.rev||0)*1e6;
+        expense+=totalExpenseThb(d);
+        months++;
+      }
+    }
+    return{yr,rev,expense,months,val:rev>0?expense/rev*100:0};
+  }).filter(x=>x.rev>0);
+  if(!rows.length){el.innerHTML='<div style="text-align:center;color:#94A3B8;padding:18px;font-size:13px">ยังไม่มีข้อมูลสำหรับเทียบปีต่อปี</div>';return;}
+  const max=Math.max(...rows.map(x=>x.val),1);
+  el.innerHTML=rows.map((x,i)=>{
+    const prev=i>0?rows[i-1]:null;
+    const chg=prev&&prev.val>0?x.val-prev.val:null;
+    const cur=x.yr===dispYr;
+    return `<div class="br" style="${cur?'background:#EFF6FF;border-radius:7px;padding:4px 6px;margin-left:-6px;margin-right:-6px':''}">
+      <div class="bl">Y${x.yr}${cur?' •':''}</div>
+      <div class="bt"><div class="bf ${x.val>=5?'bf-gold':'bf-green'}" style="width:${Math.min(100,x.val/max*100).toFixed(1)}%"></div></div>
+      <div class="bv" title="${x.months} เดือน · ค่าใช้จ่าย ${N(x.expense/1e6,2)} MB">${N(x.val,2)} บ.${chg!==null?` <span class="${chg<=0?'up':'dn'}">${chg<=0?'▼':'▲'}${Math.abs(chg).toFixed(2)}</span>`:''}</div>
+    </div>`;
+  }).join('');
 }
 
 function rDonutRev(){
@@ -2088,7 +2135,7 @@ function sw(t,el){
   document.querySelectorAll('.nb').forEach(x=>x.classList.remove('active'));
   document.getElementById('s-'+t).classList.add('active');
   el.classList.add('active');
-  if(t==='history')rHist();
+  if(t==='history'){initHistoryExportControls();rHist();}
   if(t==='analysis')swAn('cost',document.querySelector('.an-t'));
   if(t==='capacity'){rCap();loadCap();}
   if(t==='settings')document.getElementById('fb-config').value=CFG.fbConfig||'';
@@ -2129,15 +2176,85 @@ async function testCfg(){
 }
 function exportData(){const blob=new Blob([JSON.stringify({logistics:DB,capacity:CAP},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='synnex_'+new Date().toISOString().slice(0,10)+'.json';a.click();}
 
+function initHistoryExportControls(){
+  const sy=document.getElementById('ex-sy'),ey=document.getElementById('ex-ey'),sm=document.getElementById('ex-sm'),em=document.getElementById('ex-em');
+  if(!sy||sy.options.length)return;
+  const yrs=[...new Set([...Object.keys(DB),...Object.keys(CAP),CY,CY+1].map(Number).filter(Boolean))].sort((a,b)=>b-a);
+  const yOpts=yrs.map(y=>`<option value="${y}">${y}</option>`).join('');
+  sy.innerHTML=yOpts;ey.innerHTML=yOpts;
+  const mOpts=MO.slice(1).map((m,i)=>`<option value="${i+1}">${m}</option>`).join('');
+  sm.innerHTML=mOpts;em.innerHTML=mOpts;
+  const latest=getLatest();
+  sy.value=String(latest.yr);sm.value='1';ey.value=String(latest.yr);em.value=String(latest.mo);
+}
+
+function monthKey(yr,mo){return yr*100+mo;}
+function capPct(use,cap){return cap>0&&use!=null?use/cap*100:null;}
+function exportHistoryExcel(){
+  initHistoryExportControls();
+  const sy=+document.getElementById('ex-sy').value,sm=+document.getElementById('ex-sm').value;
+  const ey=+document.getElementById('ex-ey').value,em=+document.getElementById('ex-em').value;
+  const msg=document.getElementById('export-xlsx-msg');
+  let start=monthKey(sy,sm),end=monthKey(ey,em);
+  if(start>end){const t=start;start=end;end=t;}
+  const sYr=Math.floor(start/100),sMo=start%100,eYr=Math.floor(end/100),eMo=end%100;
+  const rows=[];
+  for(const yr of Object.keys(DB).map(Number).sort((a,b)=>a-b)){
+    for(let mo=1;mo<=12;mo++){
+      const key=monthKey(yr,mo);
+      if(key<start||key>end)continue;
+      const d=(DB[yr]||{})[mo]||{};
+      const cd=getCD(yr,mo);
+      if(!d.rev&&!d.ord&&!d.cbkk&&!d.cupc&&!d.stor&&!pickMetric(d,PICK_WH_OPTIONS[0],'pp').val)continue;
+      const pp=pickMetric(d,PICK_WH_OPTIONS[0],'pp').val||0;
+      const ord=pickMetric(d,PICK_WH_OPTIONS[0],'ord').val||0;
+      const exp=totalExpenseThb(d);
+      rows.push({
+        Year:yr,Month:mo,MonthName:MOF[mo],
+        Revenue_MB:d.rev??null,Inventory_MB:d.inv??null,
+        Expense_MB:+(exp/1e6).toFixed(4),'Expense_per_Sales_100THB':+expensePerSales100(d).toFixed(4),
+        Orders_Total:ord||null,Orders_HQ:d.ord_hq??null,Orders_MDC:d.ord_mdc??null,Orders_TKS:d.ord_tks??null,Orders_Bangpu:d.ord_bp??null,
+        Items:d.itm??null,Cartons:d.cartons??null,Units:d.units??null,
+        Drop_BKK:d.dbkk??null,Cost_BKK_THB:d.cbkk??null,Drop_UPC:d.dupc??null,Cost_UPC_THB:d.cupc??null,
+        Storage_THB:d.stor??null,PickPack_Total_THB:pp||null,PickPack_HQ_THB:d.pp_hq??null,PickPack_MDC_THB:d.pp_mdc??null,PickPack_TKS_THB:d.pp_tks??null,PickPack_Bangpu_THB:d.pp_bp??null,
+        AdditionalJob_THB:d.adjjob??null,Receiving_THB:d.recv??null,OT_Hr:d.ot_hr??null,OT_THB:d.ot_thb??null,TKS3_THB:d.tks3??null,TKS2_THB:d.tks2??null,
+        WorkingDays:d.wd??null,COA:d.coa??null,
+        HQ_Pallet_Use:cd.hqPU??null,HQ_Pallet_Cap:cd.hqPC??null,HQ_Pallet_Pct:capPct(cd.hqPU,cd.hqPC),
+        HQ_Tote_Use:cd.hqTU??null,HQ_Tote_Cap:cd.hqTC??null,HQ_Tote_Pct:capPct(cd.hqTU,cd.hqTC),
+        MDC_Pallet_Use:cd.mdcPU??null,MDC_Pallet_Cap:cd.mdcPC??null,MDC_Pallet_Pct:capPct(cd.mdcPU,cd.mdcPC),
+        TKS_Pallet_Use:cd.tksPU??null,TKS_Pallet_Cap:cd.tksPC??null,TKS_Pallet_Pct:capPct(cd.tksPU,cd.tksPC),
+        Bangpu_Pallet_Use:cd.bpPU??null,Bangpu_Pallet_Cap:cd.bpPC??null,Bangpu_Pallet_Pct:capPct(cd.bpPU,cd.bpPC),
+        Note:d.note||''
+      });
+    }
+  }
+  if(!rows.length){
+    if(msg)msg.textContent='ไม่มีข้อมูลในช่วงที่เลือก';
+    return;
+  }
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb,ws,'History');
+  const summary=rows.reduce((a,r)=>{
+    a.Revenue_MB+=(+r.Revenue_MB||0);a.Expense_MB+=(+r.Expense_MB||0);a.Orders_Total+=(+r.Orders_Total||0);return a;
+  },{Period:`${sYr}-${String(sMo).padStart(2,'0')} ถึง ${eYr}-${String(eMo).padStart(2,'0')}`,Revenue_MB:0,Expense_MB:0,Orders_Total:0});
+  summary.Expense_per_Sales_100THB=summary.Revenue_MB>0?+(summary.Expense_MB/summary.Revenue_MB*100).toFixed(4):0;
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet([summary]),'Summary');
+  const fn=`synnex_history_${sYr}${String(sMo).padStart(2,'0')}_${eYr}${String(eMo).padStart(2,'0')}.xlsx`;
+  XLSX.writeFile(wb,fn);
+  if(msg)msg.textContent=`Export สำเร็จ ${rows.length} เดือน: ${fn}`;
+}
+
 // ─── COMBINED RENDER ─────────────────────────────────────────
 function rDash(){
-  rMissPanel();rKPI();rExpenseSales();rCap();rLineMulti();rDonutRev();rDonutStor();rStatus();
+  rMissPanel();rKPI();rExpenseSales();rExpenseYoY();rCap();rLineMulti();rDonutRev();rDonutStor();rStatus();
   const te=document.getElementById('trend-tag');if(te)te.textContent='Y'+dispYr;
 }
 
 // ─── INIT ─────────────────────────────────────────────────────
 initDP();
 rAlerts();
+initHistoryExportControls();
 // render charts after DOM paint
 requestAnimationFrame(()=>setTimeout(()=>{rDash();rHist();},60));
 // auto sync on load
